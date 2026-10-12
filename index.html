@@ -195,7 +195,7 @@ async function config() {
   box.innerHTML = `<h3>アプリ全体の設定</h3>
     <form class="cfg" id="cfgF">
       <label>無料で登録できる数（1人あたり）<input name="free" type="number" min="1" max="100000" value="${esc(v("free_stamps") || "50")}"></label>
-      <label>キャンペーンが終わる日時（日本時間・この時刻まで何まいでも登録できる）<input name="until" type="datetime-local" value="${esc(local)}"></label>
+      <label>キャンペーンが終わる日時（日本時間・この時刻まで何枚でも登録できる）<input name="until" type="datetime-local" value="${esc(local)}"></label>
       <label>Yahoo! JAPAN の Client ID（場所の検索・みんな共通）<input name="yahoo" type="text" value="${esc(v("yahoo_appid"))}" autocomplete="off" spellcheck="false"></label>
       <button class="btn" type="submit">保存</button><span class="muted" id="cfgMsg"></span></form>`;
   $("#cfgF").onsubmit = async e => { e.preventDefault(); const f = e.target, m = $("#cfgMsg"); m.textContent = "保存中…";
@@ -308,12 +308,12 @@ function render(D) {
   hours("hours"); $("#hrSeg").onclick = e => { const b = e.target.closest("[data-k]"); if (!b) return; $("#hrSeg").querySelectorAll("button").forEach(z => z.setAttribute("aria-pressed", z === b)); hours(b.dataset.k); };
   hbars($("#cPref"), (D.prefs || []).slice(0, 15).map(p => ({ l: p.p, v: p.n, sub: p.users + "人" })), { sub: true });
   hbars($("#cCat"), (D.cats || []).map(c => ({ l: c.c, v: c.n })), { c: "--s2" });
-  hbars($("#cPer"), (D.per_user || []).map(c => ({ l: c.b + "まい", v: c.n })), { c: "--s7" });
+  hbars($("#cPer"), (D.per_user || []).map(c => ({ l: c.b + "枚", v: c.n })), { c: "--s7" });
   $("#cTop").innerHTML = (D.top_designs || []).length ? `<table><tbody>${D.top_designs.map(t => `<tr><td>${t.thumb ? `<img src="${t.thumb}" alt="" style="width:30px;height:30px;object-fit:contain;vertical-align:middle;margin-right:6px">` : ""}${esc(t.name || "（名前なし）")} <span class="muted">${esc(t.pref || "")}</span></td><td>${nf(t.members)}人</td></tr>`).join("")}</tbody></table>` : `<p class="muted">まだありません</p>`;
   hbars($("#cRef"), (D.refs || []).map(r => ({ l: r.ref, v: r.n })), { c: "--s3" });
   const pfN = { ios: "iPhone/iPad", android: "Android", mac: "Mac", win: "Windows", other: "その他", 不明: "不明" };
   hbars($("#cPf"), (D.platforms || []).map(p => ({ l: `${pfN[p.pf] || p.pf}${p.sa ? "（ホーム画面アプリ）" : "（ブラウザ）"}`, v: p.n })), { c: "--s4" });
-  const F = D.funnel || {}; hbars($("#cFun"), [{ l: "はじめて開いた端末", v: F.devices || 0 }, { l: "ログインした端末", v: F.linked || 0 }, { l: "新規登録", v: F.signups || 0 }, { l: "スタンプを1まい以上", v: F.stamp1 || 0 }, { l: "スタンプを5まい以上", v: F.stamp5 || 0 }, { l: "この7日も使った", v: F.active7 || 0 }], { c: "--s1" });
+  const F = D.funnel || {}; hbars($("#cFun"), [{ l: "はじめて開いた端末", v: F.devices || 0 }, { l: "ログインした端末", v: F.linked || 0 }, { l: "新規登録", v: F.signups || 0 }, { l: "スタンプを1枚以上", v: F.stamp1 || 0 }, { l: "スタンプを5枚以上", v: F.stamp5 || 0 }, { l: "この7日も使った", v: F.active7 || 0 }], { c: "--s1" });
   drawMap(D.geo || []);
   $("#csvDaily").onclick = () => csv("petalog-daily-" + D.today, [["日付", "新規登録", "登録者累計", "DAU", "WAU", "MAU", "訪れた人", "はじめての端末", "スタンプ登録", "公開", "図鑑の新デザイン", "AI調べる", "プチ情報", "歩いた記録", "操作数"], ...dl.map(r => [r.d, r.signups, r.users, r.dau, r.wau, r.mau, r.visitors, r.new_devices, r.stamps, r.shares, r.designs, r.ai, r.trivia, r.walks, r.events])]);
   $("#csvFeat").onclick = () => csv("petalog-features-" + D.today, [["機能", "記録名", "回数", "使った人"], ...(D.features || []).map(f => [EV[f.ev] || f.ev, f.ev, f.n, f.users])]);
@@ -325,7 +325,7 @@ function drawMap(geo) {
   MAP = L.map(el, { zoomControl: true, attributionControl: true }).setView([36.2, 137.6], 5);
   L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", { maxZoom: 17, attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>' }).addTo(MAP);
   const max = Math.max(1, ...geo.map(g => g[2]));
-  geo.forEach(([la, ln, n]) => { const t = Math.sqrt(n / max); L.circleMarker([la, ln], { radius: 5 + t * 16, stroke: false, fillColor: seq(0.35 + t * 0.65), fillOpacity: 0.55 }).bindTooltip(`${n}まい`).addTo(MAP); });
+  geo.forEach(([la, ln, n]) => { const t = Math.sqrt(n / max); L.circleMarker([la, ln], { radius: 5 + t * 16, stroke: false, fillColor: seq(0.35 + t * 0.65), fillOpacity: 0.55 }).bindTooltip(`${n}枚`).addTo(MAP); });
   if (geo.length) { const b = L.latLngBounds(geo.map(g => [g[0], g[1]])); MAP.fitBounds(b.pad(0.3), { maxZoom: 11 }); }
 }
 $("#range").onclick = e => { const b = e.target.closest("[data-d]"); if (!b) return; DAYS = +b.dataset.d; $("#range").querySelectorAll("button").forEach(z => z.setAttribute("aria-pressed", z === b)); load(); };
