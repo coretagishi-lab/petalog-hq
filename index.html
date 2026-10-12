@@ -66,6 +66,13 @@ td.bar{width:45%;text-align:left}
 .muted{color:var(--muted)}
 .dl-row{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:600px){.tile b{font-size:22px}#map{height:320px}}
+.rep{border-top:1px solid var(--grid);padding:10px 0}.rep:first-of-type{border-top:0}
+.rep-h{display:flex;gap:10px;align-items:center}.rep-h img{width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff}
+.rep ul{margin:6px 0;padding-left:18px;font-size:13px}.rep-a{display:flex;gap:6px;flex-wrap:wrap}.rep-a a{text-decoration:none}
+.btn.warn{color:var(--bad)}.muted{color:var(--muted);font-size:12px}
+.cfg{display:grid;gap:10px}.cfg label{display:grid;gap:4px;font-size:12.5px;color:var(--ink2)}
+.cfg input{font:inherit;font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid var(--grid);background:var(--surface);color:var(--ink)}
+.cfg .btn{justify-self:start}
 </style>
 </head>
 <body>
@@ -149,6 +156,54 @@ function heatTable(el, rowsL, colsL, M, o = {}) {
 }
 function csv(name, rows) { const t = rows.map(r => r.map(v => /[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : (v ?? "")).join(",")).join("\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + t], { type: "text/csv" })); a.download = name + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); }
 
+
+/* ---------- 本部の作業: 「ちがうよ」報告の確認と、アプリ全体の設定 ---------- */
+const nrm = v => String(v || "").normalize("NFKC").toLowerCase().replace(/[\s・･,.、。()（）「」『』\[\]【】<>"'!！?？~〜ー\-_/／|｜:：]/g, "");
+const kmB = (a, b, c, d) => { const R = 6371, t = Math.PI / 180, x = Math.sin((c - a) * t / 2), y = Math.sin((d - b) * t / 2); return 2 * R * Math.asin(Math.sqrt(x * x + Math.cos(a * t) * Math.cos(c * t) * y * y)); };
+async function ops() {
+  if (!$("#ops")) $("#main").insertAdjacentHTML("afterbegin", `<h2 style="margin-top:6px">本部の作業 <small>アプリの設定画面から移しました</small></h2><div class="grid g2" id="ops"><div class="card" id="opRep"><h3>「ちがうよ」報告</h3><p class="note">読み込み中…</p></div><div class="card" id="opCfg"><h3>アプリ全体の設定</h3><p class="note">読み込み中…</p></div></div>`);
+  reports(); config();
+}
+async function reports() {
+  const box = $("#opRep"); if (!box) return;
+  const { data: reps, error } = await sb.from("shares").select("id,nick,name,place,pref,lat,lng,rk,reason,spot,date,updated_at,type,kind,reviewed,design").eq("kind", "miss").eq("type", "wrong").limit(500);
+  if (error) { box.innerHTML = `<h3>「ちがうよ」報告</h3><p class="note">読み込めませんでした（${esc(error.message || "")}）</p>`; return; }
+  const open = (reps || []).filter(r => r.reviewed !== "ok"), G = [];
+  for (const r of open) { let g = G.find(g => g.c.lat != null && r.lat != null && kmB(g.c.lat, g.c.lng, r.lat, r.lng) < 0.4 && ((r.rk && g.c.rk === r.rk) || (r.name && nrm(g.c.name) === nrm(r.name)))); if (!g) G.push(g = { c: r, reps: [], recs: [] }); g.reps.push(r); }
+  for (const g of G) {
+    if (g.c.lat == null) continue; const d = 0.006;
+    const { data } = await sb.from("shares").select("id,nick,name,place,pref,lat,lng,rk,thumb,reviewed,kind,design").eq("kind", "record").gte("lat", g.c.lat - d).lte("lat", g.c.lat + d).gte("lng", g.c.lng - d * 1.25).lte("lng", g.c.lng + d * 1.25).limit(200);
+    g.recs = (data || []).filter(p => p.reviewed !== "hide" && kmB(p.lat, p.lng, g.c.lat, g.c.lng) < 0.6 && ((g.c.rk && p.rk === g.c.rk) || nrm(p.name) === nrm(g.c.name) || (g.c.design && p.design === g.c.design)));
+  }
+  G.sort((a, b) => b.reps.length - a.reps.length);
+  box.innerHTML = `<h3>「ちがうよ」報告 <small class="muted">確認待ち ${G.length}件</small></h3>` + (G.length ? G.map((g, i) => `<div class="rep">
+      <div class="rep-h">${g.recs[0] && g.recs[0].thumb ? `<img src="${g.recs[0].thumb}" alt="">` : ""}<div><b>${esc(g.c.name || "（名前なし）")}</b><div class="muted">${esc([g.c.place, g.c.pref].filter(Boolean).join(" · "))} · 記録 ${g.recs.length}件 · 報告 ${g.reps.length}件</div></div></div>
+      <ul>${g.reps.map(r => `<li>${esc(r.reason || "")}${r.spot ? `「${esc(r.spot)}」` : ""} <span class="muted">${esc(r.nick || "だれか")} · ${esc(String(r.updated_at || "").slice(0, 10))}</span></li>`).join("")}</ul>
+      <div class="rep-a">${g.c.lat != null ? `<a class="btn" href="https://www.google.com/maps/search/?api=1&query=${(+g.c.lat).toFixed(6)},${(+g.c.lng).toFixed(6)}" target="_blank" rel="noopener">地図で見る</a>` : ""}<button class="btn" data-ok="${i}">問題なし</button><button class="btn warn" data-hide="${i}">地図から外す</button></div></div>`).join("")
+    : `<p class="note">いま確認待ちの報告はありません。</p>`);
+  box.onclick = async e => { const b = e.target.closest("[data-ok],[data-hide]"); if (!b) return; const g = G[+(b.dataset.ok ?? b.dataset.hide)], hide = b.dataset.hide != null; b.disabled = true;
+    const r1 = await sb.rpc("hq_review", { p_ids: g.reps.map(r => r.id), p_verdict: "ok" }); let err = r1.error;
+    if (!err && hide && g.recs.length) err = (await sb.rpc("hq_review", { p_ids: g.recs.map(r => r.id), p_verdict: "hide" })).error;
+    if (err) { b.disabled = false; alert("更新できませんでした: " + (err.message || "")); return; } reports(); };
+}
+async function config() {
+  const box = $("#opCfg"); if (!box) return;
+  const { data, error } = await sb.from("app_config").select("key,value,updated_at");
+  if (error) { box.innerHTML = `<h3>アプリ全体の設定</h3><p class="note">読み込めませんでした（${esc(error.message || "")}）</p>`; return; }
+  const v = k => ((data || []).find(r => r.key === k) || {}).value || "";
+  const until = v("campaign_until"), d = until ? new Date(until) : null, local = d && !isNaN(d) ? new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 16) : "";
+  box.innerHTML = `<h3>アプリ全体の設定</h3>
+    <form class="cfg" id="cfgF">
+      <label>無料で登録できる数（1人あたり）<input name="free" type="number" min="1" max="100000" value="${esc(v("free_stamps") || "50")}"></label>
+      <label>キャンペーンが終わる日時（日本時間・この時刻まで何まいでも登録できる）<input name="until" type="datetime-local" value="${esc(local)}"></label>
+      <label>Yahoo! JAPAN の Client ID（場所の検索・みんな共通）<input name="yahoo" type="text" value="${esc(v("yahoo_appid"))}" autocomplete="off" spellcheck="false"></label>
+      <button class="btn" type="submit">保存</button><span class="muted" id="cfgMsg"></span></form>`;
+  $("#cfgF").onsubmit = async e => { e.preventDefault(); const f = e.target, m = $("#cfgMsg"); m.textContent = "保存中…";
+    const u = f.until.value ? new Date(f.until.value + ":00+09:00").toISOString() : "2000-01-01T00:00:00Z";
+    for (const [k, val] of [["free_stamps", String(Math.max(1, parseInt(f.free.value, 10) || 50))], ["campaign_until", u], ["yahoo_appid", f.yahoo.value.trim()]]) {
+      if (k === "yahoo_appid" && !val) continue; const { error } = await sb.rpc("hq_config_set", { p_key: k, p_value: val }); if (error) { m.textContent = "保存できませんでした: " + (error.message || ""); return; } }
+    m.textContent = "保存しました（アプリは次に開いたときから反映）"; };
+}
 /* ---------- 画面 ---------- */
 async function load() {
   if (!sb) { gate("サーバーに接続できませんでした。"); return; }
@@ -157,7 +212,7 @@ async function load() {
   $("#main").innerHTML = `<div class="gate"><p>集計しています…</p></div>`;
   const { data, error } = await sb.rpc("hq_dashboard", { p_days: DAYS });
   if (error) { if (/not_admin/.test(error.message || "")) { await sb.auth.signOut().catch(() => {}); loginForm("このアカウントでは見られません。本部のアカウントでログインしてください。"); } else gate("読み込めませんでした：" + esc(error.message || "")); return; }
-  DATA = data; render(data);
+  DATA = data; render(data); ops();
 }
 function gate(html) { $("#main").innerHTML = `<div class="gate"><p>${html}</p></div>`; }
 function loginForm(msg) {
