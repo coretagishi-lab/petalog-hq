@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f7f6f2">
+<title>DESK</title>
+<link rel="icon" href="../icon.png">
+<link rel="apple-touch-icon" href="../icon.png">
+<style>
+:root{color-scheme:light;
+  --page:#f7f6f2;--card:#ffffff;--ink:#141414;--ink2:#55534e;--muted:#8d8a83;--line:#e4e2db;--soft:#efeee8;
+  --acc:#2B4C9B;--ok:#1a9e6b;--warn:#d9822b;--bad:#d64545;--now:#e5483b;
+  --r:14px;--sh:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --page:#121212;--card:#1c1c1c;--ink:#f1f0ec;--ink2:#bdbab2;--muted:#8a877f;--line:#2e2d2a;--soft:#262522;--acc:#7f9cff;--sh:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+main{max-width:720px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
+.sub{color:var(--muted);font-size:13px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:10px}
+.daynav{display:flex;gap:6px}
+.daynav button,.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:13px}
+.chip.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0;box-shadow:var(--sh)}
+.note{border-left:4px solid var(--acc);white-space:pre-line}
+.note b{display:block;font-size:12px;color:var(--acc);margin-bottom:4px;letter-spacing:.06em}
+.stats{display:flex;gap:10px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{display:block;font-size:24px;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.bar{height:6px;border-radius:9px;background:var(--soft);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--ok);border-radius:9px}
+.sec{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin:18px 2px 6px}
+.task{display:flex;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin:8px 0;position:relative}
+.task .tm{width:46px;flex:none;font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink2);line-height:1.3}
+.task .tm small{display:block;color:var(--muted);font-size:11px}
+.task .bd{flex:1;min-width:0}
+.task .tt{font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.task .pj{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;color:#fff}
+.task .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.task.done{opacity:.6}.task.done .tt span.t{text-decoration:line-through}
+.task.skipped{opacity:.55}.task.doing{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 25%,transparent)}
+.task.now::before{content:"";position:absolute;left:-6px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--now)}
+.imp{color:var(--bad);font-size:11px;font-weight:800}
+.steps{margin:8px 0 2px;padding:0;list-style:none}
+.steps li{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:14px}
+.steps input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--ok)}
+.steps li.ck span{color:var(--muted);text-decoration:line-through}
+.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:600}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.okb{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.ghost{background:transparent}
+.big{width:100%;padding:12px;font-size:15px}
+.nowline{display:flex;align-items:center;gap:8px;color:var(--now);font-size:12px;font-weight:700;margin:6px 0}
+.nowline::after{content:"";flex:1;height:2px;background:var(--now);border-radius:2px}
+.empty{color:var(--muted);text-align:center;padding:24px 8px;font-size:14px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:10}
+.tabs button{flex:1;border:0;background:none;padding:6px 0;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button b{font-size:18px;line-height:1}
+.tabs button.on{color:var(--ink);font-weight:700}
+.week .row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+.week .d{width:52px;flex:none}.week .d b{font-size:18px;display:block;line-height:1.1}.week .d span{font-size:12px;color:var(--muted)}
+.week .row.today .d b{color:var(--now)}
+.week .ls{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.week .it{font-size:13px;display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.week .it i{width:8px;height:8px;border-radius:2px;flex:none}
+.week .it.done{color:var(--muted);text-decoration:line-through}
+.week .pc{width:42px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.month .h{font-size:11px;color:var(--muted);text-align:center}
+.month .c{aspect-ratio:1/1.1;border-radius:10px;background:var(--card);border:1px solid var(--line);padding:4px;font-size:12px;display:flex;flex-direction:column;justify-content:space-between}
+.month .c.o{opacity:.35}.month .c.today{border-color:var(--now);border-width:2px}
+.month .c em{font-style:normal;font-size:11px;font-weight:700;align-self:flex-end;font-variant-numeric:tabular-nums}
+.pjc{border-left:6px solid var(--acc)}
+.pjc h3{margin:0 0 2px;font-size:17px}
+.kv{display:grid;grid-template-columns:84px 1fr;gap:4px 10px;font-size:14px;margin-top:8px}
+.kv dt{color:var(--muted);font-size:12px;padding-top:2px}.kv dd{margin:0;white-space:pre-line}
+.kv dd.bad{color:var(--bad)}.kv dd.ok{color:var(--ok)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet[hidden]{display:none}
+.sheet .in{background:var(--card);width:100%;max-width:720px;border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+label.lb{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input.f,select.f,textarea.f{width:100%;border:1px solid var(--line);background:var(--page);border-radius:10px;padding:10px 12px;font-size:16px}
+.r2{display:flex;gap:8px}.r2>*{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--page);padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:30;white-space:nowrap}
+.toast.on{opacity:1}
+.login{max-width:360px;margin:12vh auto 0}
+.pill{display:inline-block;font-size:11px;border-radius:999px;padding:1px 8px;background:var(--soft);color:var(--ink2);font-weight:600}
+.diff.over{color:var(--bad)}.diff.under{color:var(--ok)}
+</style>
+</head>
+<body>
+<main id="main"><div class="empty">読み込み中…</div></main>
+<nav class="tabs" id="tabs" hidden>
+  <button data-v="day"><b>◉</b>今日</button>
+  <button data-v="week"><b>☰</b>週</button>
+  <button data-v="month"><b>▦</b>月</button>
+  <button data-v="proj"><b>◆</b>プロジェクト</button>
+  <button data-v="add"><b>＋</b>追加</button>
+</nav>
+<div class="sheet" id="sheet" hidden><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast"></div>
+<script src="../vendor/supabase.js"></script>
+<script>
+'use strict';
+const sb = supabase.createClient("https://xwhmmgqmiefnhcdpbuoz.supabase.co", "sb_publishable_ms34cIpwJimlU2tbgklmsw_t0vqQXSb", { auth: { persistSession: true, storageKey: "desk-auth" } });
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const today = () => ymd(new Date());
+const hm = iso => { if (!iso) return ""; const d = new Date(iso); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+const WD = "日月火水木金土";
+const dayLabel = s => { const d = new Date(s + "T00:00"); return `${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）`; };
+const addDays = (s, n) => { const d = new Date(s + "T00:00"); d.setDate(d.getDate() + n); return ymd(d); };
+const mins = (a, b) => a && b ? Math.round((new Date(b) - new Date(a)) / 60000) : null;
+const fmtMin = m => m == null ? "" : m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? m % 60 + "分" : ""}` : `${m}分`;
+function toast(t) { const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 2200); }
+
+const S = { view: "day", day: today(), month: today().slice(0, 7), tasks: [], projects: [], notes: [], open: new Set() };
+const pj = id => S.projects.find(p => p.id === id) || null;
+
+async function load() {
+  const from = addDays(S.day, -40), to = addDays(S.day, 45);
+  const [t, p, n] = await Promise.all([
+    sb.from("desk_tasks").select("*").or(`and(day.gte.${from},day.lte.${to}),status.eq.inbox,and(status.eq.todo,day.lt.${today()})`).order("start_at", { ascending: true, nullsFirst: false }),
+    sb.from("desk_projects").select("*").order("sort"),
+    sb.from("desk_notes").select("*").order("created_at", { ascending: false }).limit(20)]);
+  if (t.error || p.error) { toast("読み込めませんでした"); return; }
+  S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; render();
+}
+async function upd(id, patch) {
+  const t = S.tasks.find(x => x.id === id); Object.assign(t, patch, { updated_at: new Date().toISOString() }); render();
+  const { error } = await sb.from("desk_tasks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) toast("保存できませんでした");
+}
+
+/* ---------- 今日 ---------- */
+function dayTasks(d) { return S.tasks.filter(t => t.day === d && t.status !== "inbox"); }
+function rate(L) { const n = L.filter(t => t.status !== "inbox").length, d = L.filter(t => t.status === "done").length; return n ? Math.round(d / n * 100) : null; }
+function taskHTML(t, nowISO) {
+  const p = pj(t.project_id), open = S.open.has(t.id), plan = mins(t.start_at, t.end_at), act = t.act_min ?? mins(t.act_start, t.act_end);
+  const isNow = t.start_at && t.end_at && nowISO >= t.start_at && nowISO < t.end_at && t.status !== "done";
+  const steps = Array.isArray(t.steps) ? t.steps : [];
+  const sd = steps.filter(s => s.done).length;
+  const diff = plan != null && act != null ? act - plan : null;
+  return `<div class="task ${t.status}${isNow ? " now" : ""}" data-id="${t.id}">
+    <div class="tm">${t.start_at ? hm(t.start_at) : "—"}${t.end_at ? `<small>〜${hm(t.end_at)}</small>` : ""}</div>
+    <div class="bd"><div class="tt">${p ? `<span class="pj" style="background:${esc(p.color)}">${esc(p.emoji ? p.emoji + " " : "")}${esc(p.name)}</span>` : ""}${t.important ? '<span class="imp">重要</span>' : ""}<span class="t">${esc(t.title)}</span></div>
+      <div class="meta">${[t.status === "done" ? "✓ 完了" : t.status === "doing" ? `▶ ${hm(t.act_start)}から作業中` : t.status === "skipped" ? `できなかった${t.skip_reason ? "：" + esc(t.skip_reason) : ""}` : "", steps.length ? `手順 ${sd}/${steps.length}` : "", act != null ? `実績${fmtMin(act)}` : plan != null ? `予定${fmtMin(plan)}` : ""].filter(Boolean).join(" · ")}${diff != null && Math.abs(diff) >= 5 ? ` <span class="diff ${diff > 0 ? "over" : "under"}">(${diff > 0 ? "+" : ""}${diff}分)</span>` : ""}</div>
+      ${open ? `${steps.length ? `<ul class="steps">${steps.map((s, i) => `<li class="${s.done ? "ck" : ""}"><input type="checkbox" data-step="${t.id}|${i}" ${s.done ? "checked" : ""}><span>${esc(s.t)}</span></li>`).join("")}</ul>` : ""}
+        ${t.note ? `<div class="sub" style="white-space:pre-line;margin-top:6px">${esc(t.note)}</div>` : ""}
+        <div class="acts">${t.status === "todo" ? `<button class="btn pri" data-act="start|${t.id}">▶ 開始</button><button class="btn okb" data-act="done|${t.id}">✓ 完了</button>` : ""}
+          ${t.status === "doing" ? `<button class="btn okb" data-act="done|${t.id}">■ 終了</button>` : ""}
+          ${t.status === "todo" || t.status === "doing" ? `<button class="btn" data-act="skip|${t.id}">できなかった</button><button class="btn ghost" data-act="tmr|${t.id}">明日に回す</button>` : ""}
+          ${t.status === "done" || t.status === "skipped" ? `<button class="btn ghost" data-act="undo|${t.id}">もとに戻す</button>` : ""}
+          <button class="btn ghost" data-act="edit|${t.id}">編集</button></div>` : ""}
+    </div></div>`;
+}
+function vDay() {
+  const d = S.day, L = dayTasks(d), r = rate(L), nowISO = new Date().toISOString(), isToday = d === today();
+  const timed = L.filter(t => t.start_at).sort((a, b) => a.start_at.localeCompare(b.start_at)), free = L.filter(t => !t.start_at);
+  const work = L.reduce((a, t) => a + (t.act_min ?? mins(t.act_start, t.act_end) ?? 0), 0);
+  const plan = L.reduce((a, t) => a + (mins(t.start_at, t.end_at) || 0), 0);
+  const note = S.notes.find(n => n.day === d && n.kind === "claude") || (isToday ? S.notes.find(n => n.kind === "claude") : null);
+  const late = isToday ? S.tasks.filter(t => t.status === "todo" && t.day && t.day < d) : [];
+  const inbox = S.tasks.filter(t => t.status === "inbox");
+  let tl = "", nowShown = !isToday;
+  for (const t of timed) { if (!nowShown && t.start_at > nowISO) { tl += `<div class="nowline">いま ${hm(nowISO)}</div>`; nowShown = true; } tl += taskHTML(t, nowISO); }
+  if (!nowShown && timed.length) tl += `<div class="nowline">いま ${hm(nowISO)}</div>`;
+  return `<div class="top"><div><h1>${isToday ? "今日" : dayLabel(d).replace(/（.*/, "")}</h1><div class="sub">${dayLabel(d)}</div></div>
+    <div class="daynav"><button data-nav="-1">‹</button>${isToday ? "" : '<button data-nav="0">今日</button>'}<button data-nav="1">›</button></div></div>
+    ${note ? `<div class="card note"><b>CLAUDEより</b>${esc(note.text)}</div>` : ""}
+    <div class="stats"><div class="stat"><b>${r == null ? "—" : r + "%"}</b><span>達成率（${L.filter(t => t.status === "done").length}/${L.length}）</span><div class="bar"><i style="width:${r || 0}%"></i></div></div>
+      <div class="stat"><b>${fmtMin(work) || "0分"}</b><span>実績 / 予定${fmtMin(plan) || "0分"}</span></div></div>
+    ${late.length ? `<div class="sec">やり残し（${late.length}）</div>${late.map(t => taskHTML(t, nowISO)).join("")}` : ""}
+    <div class="sec">タイムスケジュール</div>${tl || '<div class="empty">この日の予定はまだありません</div>'}
+    ${free.length ? `<div class="sec">時間を決めずにやること</div>${free.map(t => taskHTML(t, nowISO)).join("")}` : ""}
+    <div class="acts" style="margin-top:14px"><button class="btn" data-log="1">＋ 時間外にやったことを記録</button></div>
+    ${inbox.length && isToday ? `<div class="sec">CLAUDEに組んでもらう（${inbox.length}）</div>${inbox.map(t => `<div class="task"><div class="bd"><div class="tt">${pj(t.project_id) ? `<span class="pj" style="background:${esc(pj(t.project_id).color)}">${esc(pj(t.project_id).name)}</span>` : ""}<span class="t">${esc(t.title)}</span></div><div class="meta">次にClaudeと話したときに、予定に入れてもらえます</div></div></div>`).join("")}` : ""}`;
+}
+
+/* ---------- 週 ---------- */
+function vWeek() {
+  const d0 = new Date(S.day + "T00:00"); d0.setDate(d0.getDate() - (d0.getDay() + 6) % 7); const start = ymd(d0);
+  const days = [...Array(7)].map((_, i) => addDays(start, i));
+  const all = days.flatMap(dayTasks), r = rate(all);
+  return `<div class="top"><div><h1>週</h1><div class="sub">${dayLabel(days[0]).replace(/（.*/, "")} 〜 ${dayLabel(days[6]).replace(/（.*/, "")}</div></div>
+    <div class="daynav"><button data-wk="-7">‹</button><button data-wk="0">今週</button><button data-wk="7">›</button></div></div>
+    <div class="stats"><div class="stat"><b>${r == null ? "—" : r + "%"}</b><span>この週の達成率</span><div class="bar"><i style="width:${r || 0}%"></i></div></div>
+      <div class="stat"><b>${fmtMin(all.reduce((a, t) => a + (t.act_min ?? mins(t.act_start, t.act_end) ?? 0), 0)) || "0分"}</b><span>実績の合計</span></div></div>
+    <div class="card week">${days.map(d => { const L = dayTasks(d).sort((a, b) => (a.start_at || "z").localeCompare(b.start_at || "z")), rr = rate(L), dd = new Date(d + "T00:00");
+      return `<div class="row ${d === today() ? "today" : ""}" data-go="${d}"><div class="d"><b>${dd.getDate()}</b><span>${WD[dd.getDay()]}</span></div>
+        <div class="ls">${L.length ? L.slice(0, 6).map(t => `<div class="it ${t.status === "done" ? "done" : ""}"><i style="background:${esc((pj(t.project_id) || {}).color || "#999")}"></i>${t.start_at ? hm(t.start_at) + " " : ""}${esc(t.title)}</div>`).join("") + (L.length > 6 ? `<div class="sub">ほか${L.length - 6}件</div>` : "") : '<div class="sub">予定なし</div>'}</div>
+        <div class="pc" style="color:${rr == null ? "var(--muted)" : rr >= 80 ? "var(--ok)" : rr >= 50 ? "var(--warn)" : "var(--bad)"}">${rr == null ? "" : rr + "%"}</div></div>`; }).join("")}</div>`;
+}
+
+/* ---------- 月 ---------- */
+function vMonth() {
+  const [y, m] = S.month.split("-").map(Number), first = new Date(y, m - 1, 1), st = new Date(first); st.setDate(1 - (first.getDay() + 6) % 7);
+  const cells = [...Array(42)].map((_, i) => { const d = new Date(st); d.setDate(st.getDate() + i); return ymd(d); });
+  const inMonth = S.tasks.filter(t => t.day && t.day.startsWith(S.month)), r = rate(inMonth);
+  return `<div class="top"><div><h1>${y}年${m}月</h1><div class="sub">月の達成率 ${r == null ? "—" : r + "%"}</div></div>
+    <div class="daynav"><button data-mo="-1">‹</button><button data-mo="0">今月</button><button data-mo="1">›</button></div></div>
+    <div class="month">${"月火水木金土日".split("").map(w => `<div class="h">${w}</div>`).join("")}
+    ${cells.map(d => { const L = dayTasks(d), rr = rate(L), o = !d.startsWith(S.month), bg = rr == null ? "" : `background:color-mix(in srgb,${rr >= 80 ? "var(--ok)" : rr >= 50 ? "var(--warn)" : "var(--bad)"} ${18 + Math.round(rr / 4)}%,var(--card))`;
+      return `<div class="c ${o ? "o" : ""} ${d === today() ? "today" : ""}" data-go="${d}" style="${bg}"><span>${+d.slice(8)}</span>${L.length ? `<em>${rr}%</em>` : ""}</div>`; }).join("")}</div>
+    <div class="sub" style="margin-top:8px">日付をタップすると、その日の予定を開きます</div>`;
+}
+
+/* ---------- プロジェクト ---------- */
+function vProj() {
+  const wk = addDays(today(), -6);
+  return `<div class="top"><div><h1>プロジェクト</h1><div class="sub">目標・進み具合・次の一手</div></div></div>
+  ${S.projects.filter(p => p.status !== "archived").map(p => {
+    const T = S.tasks.filter(t => t.project_id === p.id), wkMin = T.filter(t => t.day >= wk && t.day <= today()).reduce((a, t) => a + (t.act_min ?? mins(t.act_start, t.act_end) ?? 0), 0);
+    const done = T.filter(t => t.status === "done").length, open = T.filter(t => t.status === "todo" || t.status === "doing").length;
+    const pc = p.goal_value && p.current_value != null ? Math.min(100, Math.round(p.current_value / p.goal_value * 100)) : null;
+    const left = p.due ? Math.ceil((new Date(p.due + "T00:00") - new Date(today() + "T00:00")) / 864e5) : null;
+    return `<div class="card pjc" style="border-left-color:${esc(p.color)}"><h3>${esc(p.emoji ? p.emoji + " " : "")}${esc(p.name)}</h3>
+      ${p.goal ? `<div class="sub">目標：${esc(p.goal)}${left != null ? `（あと${left}日）` : ""}</div>` : ""}
+      ${pc != null ? `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px"><span>${Number(p.current_value).toLocaleString()} / ${Number(p.goal_value).toLocaleString()}${esc(p.goal_unit || "")}</span><b>${pc}%</b></div><div class="bar"><i style="width:${pc}%;background:${esc(p.color)}"></i></div>` : ""}
+      <dl class="kv"><dt>次の一手</dt><dd>${esc(p.next_step || "—")}</dd>${p.good ? `<dt>うまくいってる</dt><dd class="ok">${esc(p.good)}</dd>` : ""}${p.issues ? `<dt>解決すること</dt><dd>${esc(p.issues)}</dd>` : ""}${p.behind ? `<dt>遅れている</dt><dd class="bad">${esc(p.behind)}</dd>` : ""}
+      <dt>今週の時間</dt><dd>${fmtMin(wkMin) || "0分"}</dd><dt>タスク</dt><dd>完了${done}・残り${open}</dd></dl></div>`; }).join("") || '<div class="empty">まだプロジェクトがありません</div>'}`;
+}
+
+/* ---------- 追加・編集 ---------- */
+function form(t) {
+  t = t || { title: "", steps: [], note: "", day: S.day, start_at: null, end_at: null, project_id: null, important: false, status: "todo" };
+  const steps = (t.steps || []).map(s => s.t).join("\n");
+  return `<h1 style="font-size:18px">${t.id ? "タスクを編集" : "タスクを追加"}</h1>
+  <label class="lb">やること</label><input class="f" id="fT" value="${esc(t.title)}" placeholder="例：ドラコレ ⓪コメントを20件">
+  <label class="lb">プロジェクト</label><select class="f" id="fP"><option value="">なし</option>${S.projects.map(p => `<option value="${p.id}" ${p.id === t.project_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>
+  <div class="r2"><div><label class="lb">日付</label><input class="f" type="date" id="fD" value="${t.day || ""}"></div><div><label class="lb">開始</label><input class="f" type="time" id="fS" value="${t.start_at ? hm(t.start_at) : ""}"></div><div><label class="lb">終了</label><input class="f" type="time" id="fE" value="${t.end_at ? hm(t.end_at) : ""}"></div></div>
+  <label class="lb">細かい手順（1行に1つ）</label><textarea class="f" id="fSt" rows="4" placeholder="1行ずつチェックできます">${esc(steps)}</textarea>
+  <label class="lb">メモ</label><textarea class="f" id="fN" rows="2">${esc(t.note || "")}</textarea>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="fI" ${t.important ? "checked" : ""}> 重要</label>
+  ${t.id ? "" : `<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="fX"> 日時はClaudeに決めてもらう</label>`}
+  <div class="acts" style="margin-top:14px"><button class="btn pri big" id="fGo">${t.id ? "保存" : "追加"}</button></div>
+  ${t.id ? `<div class="acts"><button class="btn ghost" id="fDel" style="color:var(--bad)">削除</button><button class="btn ghost" id="fX2">閉じる</button></div>` : ""}`;
+}
+function readForm(old) {
+  const v = id => $(id).value.trim(), d = v("#fD"), s = v("#fS"), e = v("#fE"), inbox = $("#fX") && $("#fX").checked;
+  const prev = (old && old.steps) || [];
+  const steps = v("#fSt").split("\n").map(x => x.trim()).filter(Boolean).map(x => ({ t: x, done: !!(prev.find(p => p.t === x) || {}).done }));
+  const iso = (dd, tt) => dd && tt ? new Date(dd + "T" + tt).toISOString() : null;
+  return { title: v("#fT"), project_id: +v("#fP") || null, day: inbox ? null : (d || null), start_at: inbox ? null : iso(d, s), end_at: inbox ? null : iso(d, e), steps, note: v("#fN"), important: $("#fI").checked, ...(old ? {} : { status: inbox ? "inbox" : "todo" }) };
+}
+function openSheet(html, bind) { $("#sheetIn").innerHTML = html; $("#sheet").hidden = false; bind && bind(); }
+function closeSheet() { $("#sheet").hidden = true; }
+$("#sheet").onclick = e => { if (e.target.id === "sheet") closeSheet(); };
+function editTask(t) {
+  openSheet(form(t), () => {
+    $("#fGo").onclick = async () => { const f = readForm(t); if (!f.title) return toast("やることを入れてください"); closeSheet(); await upd(t.id, f); toast("保存しました"); };
+    $("#fDel").onclick = async () => { if (!confirm("このタスクを削除しますか？")) return; closeSheet(); S.tasks = S.tasks.filter(x => x.id !== t.id); render(); await sb.from("desk_tasks").delete().eq("id", t.id); };
+    $("#fX2").onclick = closeSheet;
+  });
+}
+function vAdd() {
+  setTimeout(() => {
+    $("#fGo").onclick = async () => { const f = readForm(); if (!f.title) return toast("やることを入れてください");
+      const { data, error } = await sb.from("desk_tasks").insert(f).select().single(); if (error) return toast("追加できませんでした");
+      S.tasks.push(data); toast(f.status === "inbox" ? "追加しました。次にClaudeが予定に入れます" : "追加しました"); if (f.day) S.day = f.day; S.view = "day"; render(); };
+  });
+  return `<div class="card">${form()}</div>`;
+}
+function logOff() {
+  const now = new Date(), s = new Date(now - 30 * 60000);
+  openSheet(`<h1 style="font-size:18px">時間外にやったことを記録</h1>
+    <label class="lb">やったこと</label><input class="f" id="lT" placeholder="例：布団でドラコレの営業">
+    <label class="lb">プロジェクト</label><select class="f" id="lP"><option value="">なし</option>${S.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>
+    <div class="r2"><div><label class="lb">日付</label><input class="f" type="date" id="lD" value="${today()}"></div><div><label class="lb">開始</label><input class="f" type="time" id="lS" value="${hm(s.toISOString())}"></div><div><label class="lb">終了</label><input class="f" type="time" id="lE" value="${hm(now.toISOString())}"></div></div>
+    <div class="acts" style="margin-top:14px"><button class="btn pri big" id="lGo">記録する</button></div>`, () => {
+    $("#lGo").onclick = async () => { const t = $("#lT").value.trim(); if (!t) return toast("やったことを入れてください"); const d = $("#lD").value, a = new Date(d + "T" + $("#lS").value).toISOString(), b = new Date(d + "T" + $("#lE").value).toISOString();
+      const row = { title: t, project_id: +$("#lP").value || null, day: d, start_at: a, end_at: b, act_start: a, act_end: b, act_min: mins(a, b), status: "done", note: "時間外の記録" };
+      const { data, error } = await sb.from("desk_tasks").insert(row).select().single(); if (error) return toast("記録できませんでした"); S.tasks.push(data); closeSheet(); render(); toast("記録しました"); };
+  });
+}
+const REASONS = ["急な予定が入った", "時間が足りなかった", "前の作業が長引いた", "気分がのらなかった", "後回しにした", "その他"];
+function skipTask(t) {
+  openSheet(`<h1 style="font-size:18px">できなかった理由</h1><div class="acts">${REASONS.map(r => `<button class="btn" data-r="${esc(r)}">${esc(r)}</button>`).join("")}</div>
+    <label class="lb">ひとこと（任意）</label><input class="f" id="sR" placeholder="例：15時から打ち合わせが入った">`, () => {
+    $("#sheetIn").querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { const x = $("#sR").value.trim(); closeSheet(); await upd(t.id, { status: "skipped", skip_reason: b.dataset.r + (x ? "：" + x : "") }); toast("記録しました。Claudeが組み直します"); });
+  });
+}
+
+/* ---------- 画面 ---------- */
+function render() {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
+  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, proj: vProj, add: vAdd })[S.view]();
+}
+document.addEventListener("click", async e => {
+  const tab = e.target.closest("#tabs button"); if (tab) { S.view = tab.dataset.v; if (S.view === "day") S.day = today(); render(); scrollTo(0, 0); return; }
+  const nav = e.target.closest("[data-nav]"); if (nav) { const n = +nav.dataset.nav; S.day = n ? addDays(S.day, n) : today(); render(); return; }
+  const wk = e.target.closest("[data-wk]"); if (wk) { const n = +wk.dataset.wk; S.day = n ? addDays(S.day, n) : today(); render(); return; }
+  const mo = e.target.closest("[data-mo]"); if (mo) { const n = +mo.dataset.mo; if (!n) S.month = today().slice(0, 7); else { const [y, m] = S.month.split("-").map(Number), d = new Date(y, m - 1 + n, 1); S.month = ymd(d).slice(0, 7); } render(); return; }
+  const go = e.target.closest("[data-go]"); if (go) { S.day = go.dataset.go; S.view = "day"; render(); scrollTo(0, 0); return; }
+  if (e.target.closest("[data-log]")) { logOff(); return; }
+  const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
+  const a = e.target.closest("[data-act]"); if (a) { const [k, id0] = a.dataset.act.split("|"), id = +id0, t = S.tasks.find(x => x.id === id); const now = new Date().toISOString();
+    if (k === "start") await upd(id, { status: "doing", act_start: now });
+    if (k === "done") { const st0 = t.act_start; await upd(id, { status: "done", act_end: now, act_min: st0 ? mins(st0, now) : null }); toast("おつかれさまです！"); }
+    if (k === "skip") skipTask(t);
+    if (k === "tmr") { const nd = addDays(t.day || today(), 1), sh = iso => iso ? new Date(new Date(iso).getTime() + 864e5).toISOString() : null; await upd(id, { day: nd, start_at: sh(t.start_at), end_at: sh(t.end_at), note: (t.note ? t.note + "\n" : "") + `${t.day || ""}から回した` }); toast("明日に回しました"); }
+    if (k === "undo") await upd(id, { status: "todo", act_start: null, act_end: null, act_min: null, skip_reason: "" });
+    if (k === "edit") editTask(t);
+    return; }
+  const card = e.target.closest(".task[data-id]"); if (card && !e.target.closest("input,button")) { const id = +card.dataset.id; S.open.has(id) ? S.open.delete(id) : S.open.add(id); render(); }
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user) load(); });
+
+/* ---------- ログイン ---------- */
+function vLogin() {
+  $("#tabs").hidden = true;
+  $("#main").innerHTML = `<div class="login card"><h1>DESK</h1><div class="sub">ぺたろぐと同じアカウントでログインします</div>
+    <label class="lb">メールアドレス</label><input class="f" id="em" type="email" autocomplete="username">
+    <label class="lb">パスワード</label><input class="f" id="pw" type="password" autocomplete="current-password">
+    <div class="acts" style="margin-top:14px"><button class="btn pri big" id="lg">ログイン</button></div></div>`;
+  $("#lg").onclick = async () => { const { error } = await sb.auth.signInWithPassword({ email: $("#em").value.trim(), password: $("#pw").value }); if (error) toast("ログインできませんでした"); else start(); };
+}
+async function start() {
+  const { data } = await sb.auth.getSession(); if (!data.session) return vLogin();
+  S.user = data.session.user; $("#tabs").hidden = false; await load();
+  // 作業中のタスクがあれば開いておく
+  S.tasks.filter(t => t.status === "doing" || (t.day === today() && t.start_at && t.end_at && new Date(t.start_at) <= new Date() && new Date() < new Date(t.end_at))).forEach(t => S.open.add(t.id)); render();
+  setInterval(() => { if (S.view === "day" && !document.hidden && $("#sheet").hidden) render(); }, 60000);
+}
+start();
+</script>
+</body>
+</html>
