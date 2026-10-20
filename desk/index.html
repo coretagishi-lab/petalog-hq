@@ -252,6 +252,16 @@ function readForm(old) {
   const iso = (dd, tt) => dd && tt ? new Date(dd + "T" + tt).toISOString() : null;
   return { title: v("#fT"), project_id: +v("#fP") || null, day: inbox ? null : (d || null), start_at: inbox ? null : iso(d, s), end_at: inbox ? null : iso(d, e), steps, note: v("#fN"), important: $("#fI").checked, ...(old ? {} : { status: inbox ? "inbox" : "todo" }) };
 }
+// 実際の開始・終了に合わせて、その日のこのあとの予定を自動でずらす（同じ長さのまま）
+async function shiftAfter(t, dl, self) {
+  if (!t.day || !t.start_at) return;
+  const sh = iso => iso ? new Date(new Date(iso).getTime() + dl * 60000).toISOString() : null;
+  const L = S.tasks.filter(x => x.day === t.day && x.start_at && x.status === "todo" && x.id !== t.id && x.start_at >= t.start_at);
+  const patches = []; if (self && t.end_at) patches.push([t, { end_at: sh(t.end_at) }]);
+  for (const x of L) patches.push([x, { start_at: sh(x.start_at), end_at: sh(x.end_at) }]);
+  for (const [x, p] of patches) { Object.assign(x, p); sb.from("desk_tasks").update(p).eq("id", x.id).then(r => { if (r.error) toast("ずらせませんでした"); }); }
+  render(); if (L.length) toast(`このあとの予定を${dl > 0 ? dl + "分うしろ" : -dl + "分まえ"}にずらしました`);
+}
 function openSheet(html, bind) { $("#sheetIn").innerHTML = html; $("#sheet").hidden = false; bind && bind(); }
 function closeSheet() { $("#sheet").hidden = true; }
 $("#sheet").onclick = e => { if (e.target.id === "sheet") closeSheet(); };
@@ -304,8 +314,8 @@ document.addEventListener("click", async e => {
   if (e.target.closest("[data-log]")) { logOff(); return; }
   const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
   const a = e.target.closest("[data-act]"); if (a) { const [k, id0] = a.dataset.act.split("|"), id = +id0, t = S.tasks.find(x => x.id === id); const now = new Date().toISOString();
-    if (k === "start") await upd(id, { status: "doing", act_start: now });
-    if (k === "done") { const st0 = t.act_start; await upd(id, { status: "done", act_end: now, act_min: st0 ? mins(st0, now) : null }); toast("おつかれさまです！"); }
+    if (k === "start") { const dl = t.start_at ? mins(t.start_at, now) : 0; await upd(id, { status: "doing", act_start: now }); if (Math.abs(dl) >= 5) await shiftAfter(t, dl, true); }
+    if (k === "done") { const st0 = t.act_start, dl = t.end_at ? mins(t.end_at, now) : 0; await upd(id, { status: "done", act_end: now, act_min: st0 ? mins(st0, now) : null }); toast("おつかれさまです！"); if (Math.abs(dl) >= 5) await shiftAfter(t, dl, false); }
     if (k === "skip") skipTask(t);
     if (k === "tmr") { const nd = addDays(t.day || today(), 1), sh = iso => iso ? new Date(new Date(iso).getTime() + 864e5).toISOString() : null; await upd(id, { day: nd, start_at: sh(t.start_at), end_at: sh(t.end_at), note: (t.note ? t.note + "\n" : "") + `${t.day || ""}から回した` }); toast("明日に回しました"); }
     if (k === "undo") await upd(id, { status: "todo", act_start: null, act_end: null, act_min: null, skip_reason: "" });
