@@ -72,8 +72,28 @@ h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
 .pain li button{flex:none;border:0;background:none;color:var(--muted);font-size:12px;padding:2px 4px}
 .pain .add{display:flex;gap:6px}
 .pain .add input{flex:1;min-width:0}
+.bd-plan{border-left:6px solid #c0552f}
+.bd-plan h3{margin:0 0 2px;font-size:17px}
+.qadd{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.qadd button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 4px;font-weight:700;font-size:14px;box-shadow:var(--sh)}
+.qadd button small{display:block;font-weight:400;font-size:11px;color:var(--muted)}
+.ent{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ent:last-child{border-bottom:0}
+.ent .k{flex:none;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;color:#fff;margin-top:2px}
+.ent .k.workout{background:#c0552f}.ent .k.meal{background:#1a9e6b}.ent .k.body{background:#2B4C9B}
+.ent .x{flex:1;min-width:0;white-space:pre-line}
+.ent .x small{display:block;color:var(--muted);font-size:12px}
+.ent button{flex:none;border:0;background:none;color:var(--muted);font-size:12px;padding:2px 4px}
+.tot{display:flex;gap:10px;margin-top:8px}
+.tot div{flex:1;background:var(--soft);border-radius:10px;padding:8px 10px}
+.tot b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.tot span{font-size:11px;color:var(--muted)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:10px}
+.hist .row{display:grid;grid-template-columns:64px 1fr 1fr 1fr;gap:6px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+.hist .row.h{color:var(--muted);font-size:11px;font-weight:700}
 .tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:10}
-.tabs button{flex:1;border:0;background:none;padding:6px 0;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button{flex:1;min-width:0;white-space:nowrap;letter-spacing:-.02em;border:0;background:none;padding:6px 0;font-size:10.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
 .tabs button b{font-size:18px;line-height:1}
 .tabs button.on{color:var(--ink);font-weight:700}
 .week .row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -113,6 +133,7 @@ input.f,select.f,textarea.f{width:100%;border:1px solid var(--line);background:v
   <button data-v="day"><b>◉</b>今日</button>
   <button data-v="week"><b>☰</b>週</button>
   <button data-v="month"><b>▦</b>月</button>
+  <button data-v="body"><b>💪</b>からだ</button>
   <button data-v="proj"><b>◆</b>プロジェクト</button>
   <button data-v="add"><b>＋</b>追加</button>
 </nav>
@@ -135,18 +156,19 @@ const mins = (a, b) => a && b ? Math.round((new Date(b) - new Date(a)) / 60000) 
 const fmtMin = m => m == null ? "" : m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? m % 60 + "分" : ""}` : `${m}分`;
 function toast(t) { const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 2200); }
 
-const S = { view: "day", day: today(), month: today().slice(0, 7), tasks: [], projects: [], notes: [], pains: [], open: new Set() };
+const S = { view: "day", day: today(), month: today().slice(0, 7), tasks: [], projects: [], notes: [], pains: [], body: [], open: new Set() };
 const pj = id => S.projects.find(p => p.id === id) || null;
 
 async function load() {
   const from = addDays(S.day, -40), to = addDays(S.day, 45);
-  const [t, p, n, pn] = await Promise.all([
+  const [t, p, n, pn, bd] = await Promise.all([
     sb.from("desk_tasks").select("*").or(`and(day.gte.${from},day.lte.${to}),status.eq.inbox,and(status.eq.todo,day.lt.${today()})`).order("start_at", { ascending: true, nullsFirst: false }),
     sb.from("desk_projects").select("*").order("sort"),
-    sb.from("desk_notes").select("*").neq("kind", "pain").order("created_at", { ascending: false }).limit(20),
-    sb.from("desk_notes").select("*").eq("kind", "pain").gte("day", from).order("created_at", { ascending: true })]);
+    sb.from("desk_notes").select("*").not("kind", "in", "(pain,meal,workout,body)").order("created_at", { ascending: false }).limit(20),
+    sb.from("desk_notes").select("*").eq("kind", "pain").gte("day", from).order("created_at", { ascending: true }),
+    sb.from("desk_notes").select("*").in("kind", ["meal", "workout", "body"]).gte("day", addDays(today(), -120)).order("created_at", { ascending: true })]);
   if (t.error || p.error) { toast("読み込めませんでした"); return; }
-  S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; S.pains = pn.data || []; render();
+  S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; S.pains = pn.data || []; S.body = (bd.data || []).map(bodyParse); render();
 }
 async function upd(id, patch) {
   const t = S.tasks.find(x => x.id === id); Object.assign(t, patch, { updated_at: new Date().toISOString() }); render();
@@ -220,6 +242,94 @@ async function delPain(id) {
   const { error } = await sb.from("desk_notes").delete().eq("id", x.id); if (error) { S.pains.push(x); render(); toast("消せませんでした"); }
 }
 document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "painIn" && !e.isComposing) { e.preventDefault(); addPain(S.day); } });
+
+/* ---------- からだ（マッチョ計画：筋トレ・食事・体組成） ---------- */
+// desk_notes の kind = workout / meal / body。text にJSONで中身を入れる（カロリーが空の食事は、夜の総括でClaudeが見積もって入れる）
+function bodyParse(r) { let v = {}; try { v = JSON.parse(r.text || "{}"); if (typeof v !== "object" || !v) v = { text: String(r.text) }; } catch (_) { v = { text: r.text }; } return { ...r, v }; }
+const EXS = ["腕立て伏せ", "腹筋", "スクワット", "懸垂", "プランク（秒）", "その他"];
+const SLOTS = ["昼", "夜", "間食", "お酒"];
+const num = x => x === "" || x == null || isNaN(+x) ? null : +x;
+function entText(e) {
+  const v = e.v;
+  if (e.kind === "workout") return `${esc(v.ex || "筋トレ")}　${v.reps != null ? v.reps + (String(v.ex || "").includes("秒") ? "秒" : "回") : ""}${v.sets ? " × " + v.sets + "セット" : ""}${v.reps && v.sets ? `（合計${v.reps * v.sets}）` : ""}${v.note ? `<small>${esc(v.note)}</small>` : ""}`;
+  if (e.kind === "meal") return `${v.slot ? `<b>${esc(v.slot)}</b>　` : ""}${esc(v.text || "")}<small>${v.kcal != null ? `約${v.kcal}kcal` : "カロリーはClaudeが見積もり中"}${v.protein != null ? ` ・ たんぱく質 約${v.protein}g` : ""}</small>`;
+  return [v.weight != null ? `体重 ${v.weight}kg` : "", v.fat != null ? `体脂肪 ${v.fat}%` : "", v.muscle != null ? `筋肉量 ${v.muscle}kg` : "", v.waist != null ? `ウエスト ${v.waist}cm` : ""].filter(Boolean).join("　") || esc(v.text || "");
+}
+const KLABEL = { workout: "筋トレ", meal: "食事", body: "体組成" };
+function dayBody(d) { return S.body.filter(e => e.day === d); }
+function lineChart(pts, unit, color) {
+  if (pts.length < 2) return `<div class="sub">記録が2日分そろうと、ここにグラフが出ます</div>`;
+  const W = 320, H = 120, L = 30, R = 8, T = 10, B = 20, xs = pts.map(p => Date.parse(p[0])), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.floor(Math.min(...ys) - 0.5), hi = Math.ceil(Math.max(...ys) + 0.5);
+  const X = t => L + (x1 === x0 ? 0 : (t - x0) / (x1 - x0)) * (W - L - R), Y = v => T + (hi - v) / (hi - lo || 1) * (H - T - B);
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${X(Date.parse(p[0])).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(" "), last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit}の推移">
+    <line x1="${L}" x2="${W - R}" y1="${Y(hi)}" y2="${Y(hi)}" stroke="var(--line)"/><line x1="${L}" x2="${W - R}" y1="${Y(lo)}" y2="${Y(lo)}" stroke="var(--line)"/>
+    <text x="${L - 4}" y="${Y(hi) + 3}" text-anchor="end">${hi}</text><text x="${L - 4}" y="${Y(lo) + 3}" text-anchor="end">${lo}</text>
+    <text x="${L}" y="${H - 4}">${pts[0][0].slice(5).replace("-", "/")}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">${last[0].slice(5).replace("-", "/")}</text>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${X(Date.parse(last[0]))}" cy="${Y(last[1])}" r="4" fill="${color}"/></svg>`;
+}
+function barChart(pts, color) {
+  if (!pts.some(p => p[1])) return `<div class="sub">筋トレを記録すると、ここに日ごとの回数が出ます</div>`;
+  const W = 320, H = 110, L = 4, R = 4, T = 14, B = 18, n = pts.length, bw = (W - L - R) / n, mx = Math.max(...pts.map(p => p[1]));
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="腕立て伏せの回数（日ごと）">
+    ${pts.map((p, i) => { const h = mx ? p[1] / mx * (H - T - B) : 0, x = L + i * bw; return `<rect x="${(x + 1).toFixed(1)}" y="${(H - B - h).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${color}" opacity="${p[1] ? 1 : 0}"/>${p[1] && i === n - 1 ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(H - B - h - 3).toFixed(1)}" text-anchor="middle">${p[1]}</text>` : ""}`; }).join("")}
+    <text x="${L}" y="${H - 4}">${pts[0][0].slice(5).replace("-", "/")}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">${pts[n - 1][0].slice(5).replace("-", "/")}</text></svg>`;
+}
+function vBody() {
+  const d = today(), E = dayBody(d), plan = S.projects.find(p => p.name === "マッチョ計画");
+  const meals = E.filter(e => e.kind === "meal"), kcal = meals.reduce((a, e) => a + (e.v.kcal || 0), 0), prot = meals.reduce((a, e) => a + (e.v.protein || 0), 0), unk = meals.filter(e => e.v.kcal == null).length;
+  const bodies = S.body.filter(e => e.kind === "body" && e.v.weight != null), lastB = [...S.body].reverse().find(e => e.kind === "body");
+  const wPts = Object.entries(bodies.reduce((m, e) => (m[e.day] = e.v.weight, m), {})).sort();
+  const fPts = Object.entries(S.body.filter(e => e.kind === "body" && e.v.fat != null).reduce((m, e) => (m[e.day] = e.v.fat, m), {})).sort();
+  const days30 = [...Array(30)].map((_, i) => addDays(d, i - 29));
+  const pushPts = days30.map(x => [x, dayBody(x).filter(e => e.kind === "workout" && e.v.ex === "腕立て伏せ").reduce((a, e) => a + (e.v.reps || 0) * (e.v.sets || 1), 0)]);
+  const hist = [...Array(14)].map((_, i) => addDays(d, -i)).filter(x => dayBody(x).length);
+  return `<div class="top"><div><h1>からだ</h1><div class="sub">筋トレ・食事・体組成の記録</div></div></div>
+  ${plan ? `<div class="card bd-plan"><h3>💪 マッチョ計画</h3>${plan.goal ? `<div class="sub">目標：${esc(plan.goal)}</div>` : ""}<dl class="kv"><dt>次の一手</dt><dd>${esc(plan.next_step || "—")}</dd>${plan.issues ? `<dt>気をつけること</dt><dd>${esc(plan.issues)}</dd>` : ""}</dl></div>` : ""}
+  <div class="qadd"><button data-bq="workout">＋ 筋トレ<small>種目・回数</small></button><button data-bq="meal">＋ 食事<small>食べたもの</small></button><button data-bq="body">＋ 体組成<small>体重・体脂肪</small></button></div>
+  <div class="card"><div class="sec" style="margin-top:0">今日（${dayLabel(d)}）</div>
+    ${E.length ? E.map(e => `<div class="ent"><span class="k ${e.kind}">${KLABEL[e.kind]}</span><div class="x">${entText(e)}</div><button data-bdel="${e.id}">消す</button></div>`).join("") : '<div class="sub">まだ記録がありません。上のボタンから足せます。</div>'}
+    ${meals.length ? `<div class="tot"><div><b>${kcal ? "約" + kcal : "—"}</b><span>kcal${unk ? `（ほか${unk}件見積もり中）` : ""}</span></div><div><b>${prot ? "約" + prot : "—"}</b><span>たんぱく質 g</span></div></div>` : ""}</div>
+  <div class="card"><div class="sec" style="margin-top:0">体重（kg）${lastB && lastB.v.weight != null ? ` ・ いま ${lastB.v.weight}kg` : ""}</div>${lineChart(wPts, "体重", "#2B4C9B")}
+    ${fPts.length ? `<div class="sec">体脂肪率（%）</div>${lineChart(fPts, "体脂肪率", "#c0552f")}` : ""}</div>
+  <div class="card"><div class="sec" style="margin-top:0">腕立て伏せ（日ごとの合計回数・30日）</div>${barChart(pushPts, "#c0552f")}</div>
+  ${hist.length ? `<div class="card hist"><div class="sec" style="margin-top:0">最近の記録</div><div class="row h"><span>日付</span><span>筋トレ</span><span>食事</span><span>体重</span></div>
+    ${hist.map(x => { const L2 = dayBody(x), wk = L2.filter(e => e.kind === "workout").map(e => `${e.v.ex === "腕立て伏せ" ? "腕立て" : e.v.ex || ""}${(e.v.reps || 0) * (e.v.sets || 1) || ""}`).join(" "), ml = L2.filter(e => e.kind === "meal"), kc = ml.reduce((a, e) => a + (e.v.kcal || 0), 0), bw = [...L2].reverse().find(e => e.kind === "body" && e.v.weight != null);
+      return `<div class="row"><span>${+x.slice(5, 7)}/${+x.slice(8)}</span><span>${esc(wk) || "—"}</span><span>${ml.length ? (kc ? "約" + kc + "kcal" : ml.length + "食") : "—"}</span><span>${bw ? bw.v.weight + "kg" : "—"}</span></div>`; }).join("")}</div>` : ""}`;
+}
+function bodyForm(kind) {
+  const d = today();
+  const html = kind === "workout" ? `<h1 style="font-size:18px">筋トレを記録</h1>
+    <label class="lb">種目</label><select class="f" id="bEx">${EXS.map(x => `<option>${x}</option>`).join("")}</select>
+    <input class="f" id="bExO" placeholder="種目の名前" style="margin-top:6px" hidden>
+    <div class="r2"><div><label class="lb">回数（1セット）</label><input class="f" type="number" inputmode="numeric" id="bReps" value="30"></div><div><label class="lb">セット数</label><input class="f" type="number" inputmode="numeric" id="bSets" value="3"></div></div>
+    <label class="lb">メモ（なくてOK）</label><input class="f" id="bNote" placeholder="例：最後のセットきつかった">`
+    : kind === "meal" ? `<h1 style="font-size:18px">食事を記録</h1>
+    <label class="lb">いつ</label><select class="f" id="bSlot">${SLOTS.map(x => `<option>${x}</option>`).join("")}</select>
+    <label class="lb">食べたもの・飲んだもの</label><textarea class="f" id="bText" rows="3" placeholder="例：鶏むね120g（茹でる前）、そば1人前、オクラの味噌汁"></textarea>
+    <div class="r2"><div><label class="lb">カロリー（わかれば）</label><input class="f" type="number" inputmode="numeric" id="bKcal" placeholder="空欄でOK"></div><div><label class="lb">たんぱく質g（わかれば）</label><input class="f" type="number" inputmode="numeric" id="bProt" placeholder="空欄でOK"></div></div>
+    <div class="sub" style="margin-top:6px">空欄なら、夜の総括でClaudeが見積もって入れます。</div>`
+    : `<h1 style="font-size:18px">体組成を記録</h1><div class="sub">わかる所だけで大丈夫です。</div>
+    <div class="r2"><div><label class="lb">体重 kg</label><input class="f" type="number" step="0.1" inputmode="decimal" id="bW"></div><div><label class="lb">体脂肪率 %</label><input class="f" type="number" step="0.1" inputmode="decimal" id="bF"></div></div>
+    <div class="r2"><div><label class="lb">筋肉量 kg</label><input class="f" type="number" step="0.1" inputmode="decimal" id="bM"></div><div><label class="lb">ウエスト cm</label><input class="f" type="number" step="0.1" inputmode="decimal" id="bWa"></div></div>`;
+  openSheet(html + `<label class="lb">日付</label><input class="f" type="date" id="bD" value="${d}"><div class="acts" style="margin-top:14px"><button class="btn pri big" id="bGo">記録する</button></div>`, () => {
+    const ex = $("#bEx"); if (ex) ex.onchange = () => { $("#bExO").hidden = ex.value !== "その他"; };
+    $("#bGo").onclick = async () => {
+      let v;
+      if (kind === "workout") { const name = ex.value === "その他" ? $("#bExO").value.trim() : ex.value; if (!name) return toast("種目を入れてください"); v = { ex: name, reps: num($("#bReps").value), sets: num($("#bSets").value) }; const n = $("#bNote").value.trim(); if (n) v.note = n; }
+      else if (kind === "meal") { const t = $("#bText").value.trim(); if (!t) return toast("食べたものを入れてください"); v = { slot: $("#bSlot").value, text: t }; const k = num($("#bKcal").value), pr = num($("#bProt").value); if (k != null) v.kcal = k; if (pr != null) v.protein = pr; }
+      else { v = {}; [["weight", "#bW"], ["fat", "#bF"], ["muscle", "#bM"], ["waist", "#bWa"]].forEach(([k, id]) => { const x = num($(id).value); if (x != null) v[k] = x; }); if (!Object.keys(v).length) return toast("どれか1つ入れてください"); }
+      const { data, error } = await sb.from("desk_notes").insert({ day: $("#bD").value || d, kind, text: JSON.stringify(v) }).select().single();
+      if (error) return toast("記録できませんでした"); S.body.push(bodyParse(data)); closeSheet(); render(); toast(kind === "workout" ? "ナイス！記録しました" : "記録しました");
+    };
+  });
+}
+async function bodyDel(id) {
+  const e = S.body.find(x => String(x.id) === id); if (!e) return; S.body = S.body.filter(x => x !== e); render();
+  const { error } = await sb.from("desk_notes").delete().eq("id", e.id); if (error) { S.body.push(e); render(); toast("消せませんでした"); }
+}
 
 /* ---------- 週 ---------- */
 function vWeek() {
@@ -338,7 +448,7 @@ function skipTask(t) {
 /* ---------- 画面 ---------- */
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
-  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, proj: vProj, add: vAdd })[S.view]();
+  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, body: vBody, proj: vProj, add: vAdd })[S.view]();
 }
 document.addEventListener("click", async e => {
   const tab = e.target.closest("#tabs button"); if (tab) { S.view = tab.dataset.v; if (S.view === "day") S.day = today(); render(); scrollTo(0, 0); return; }
@@ -347,6 +457,8 @@ document.addEventListener("click", async e => {
   const mo = e.target.closest("[data-mo]"); if (mo) { const n = +mo.dataset.mo; if (!n) S.month = today().slice(0, 7); else { const [y, m] = S.month.split("-").map(Number), d = new Date(y, m - 1 + n, 1); S.month = ymd(d).slice(0, 7); } render(); return; }
   const go = e.target.closest("[data-go]"); if (go) { S.day = go.dataset.go; S.view = "day"; render(); scrollTo(0, 0); return; }
   if (e.target.closest("[data-log]")) { logOff(); return; }
+  const bq = e.target.closest("[data-bq]"); if (bq) { bodyForm(bq.dataset.bq); return; }
+  const bdl = e.target.closest("[data-bdel]"); if (bdl) { bodyDel(bdl.dataset.bdel); return; }
   const pa = e.target.closest("[data-padd]"); if (pa) { addPain(pa.dataset.padd); return; }
   const pd = e.target.closest("[data-pdel]"); if (pd) { delPain(pd.dataset.pdel); return; }
   const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
