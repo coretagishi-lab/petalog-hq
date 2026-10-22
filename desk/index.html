@@ -60,6 +60,18 @@ h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
 .nowline{display:flex;align-items:center;gap:8px;color:var(--now);font-size:12px;font-weight:700;margin:6px 0}
 .nowline::after{content:"";flex:1;height:2px;background:var(--now);border-radius:2px}
 .empty{color:var(--muted);text-align:center;padding:24px 8px;font-size:14px}
+.pain{border-left:4px solid #0F7A6C}
+.pain .hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.pain .hd b{font-size:12px;color:#0F7A6C;letter-spacing:.06em}
+.pain .hd span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pain .hd span.ok{color:var(--ok);font-weight:700}
+.pain .q{font-size:13px;color:var(--ink2);margin:4px 0 8px}
+.pain ol{margin:0 0 8px;padding:0;list-style:none}
+.pain li{padding:4px 0;font-size:14px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.pain li span{min-width:0;white-space:pre-line}
+.pain li button{flex:none;border:0;background:none;color:var(--muted);font-size:12px;padding:2px 4px}
+.pain .add{display:flex;gap:6px}
+.pain .add input{flex:1;min-width:0}
 .tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:10}
 .tabs button{flex:1;border:0;background:none;padding:6px 0;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
 .tabs button b{font-size:18px;line-height:1}
@@ -123,17 +135,18 @@ const mins = (a, b) => a && b ? Math.round((new Date(b) - new Date(a)) / 60000) 
 const fmtMin = m => m == null ? "" : m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? m % 60 + "分" : ""}` : `${m}分`;
 function toast(t) { const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 2200); }
 
-const S = { view: "day", day: today(), month: today().slice(0, 7), tasks: [], projects: [], notes: [], open: new Set() };
+const S = { view: "day", day: today(), month: today().slice(0, 7), tasks: [], projects: [], notes: [], pains: [], open: new Set() };
 const pj = id => S.projects.find(p => p.id === id) || null;
 
 async function load() {
   const from = addDays(S.day, -40), to = addDays(S.day, 45);
-  const [t, p, n] = await Promise.all([
+  const [t, p, n, pn] = await Promise.all([
     sb.from("desk_tasks").select("*").or(`and(day.gte.${from},day.lte.${to}),status.eq.inbox,and(status.eq.todo,day.lt.${today()})`).order("start_at", { ascending: true, nullsFirst: false }),
     sb.from("desk_projects").select("*").order("sort"),
-    sb.from("desk_notes").select("*").order("created_at", { ascending: false }).limit(20)]);
+    sb.from("desk_notes").select("*").neq("kind", "pain").order("created_at", { ascending: false }).limit(20),
+    sb.from("desk_notes").select("*").eq("kind", "pain").gte("day", from).order("created_at", { ascending: true })]);
   if (t.error || p.error) { toast("読み込めませんでした"); return; }
-  S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; render();
+  S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; S.pains = pn.data || []; render();
 }
 async function upd(id, patch) {
   const t = S.tasks.find(x => x.id === id); Object.assign(t, patch, { updated_at: new Date().toISOString() }); render();
@@ -177,6 +190,7 @@ function vDay() {
   return `<div class="top"><div><h1>${isToday ? "今日" : dayLabel(d).replace(/（.*/, "")}</h1><div class="sub">${dayLabel(d)}</div></div>
     <div class="daynav"><button data-nav="-1">‹</button>${isToday ? "" : '<button data-nav="0">今日</button>'}<button data-nav="1">›</button></div></div>
     ${note ? `<div class="card note"><b>CLAUDEより</b>${esc(note.text)}</div>` : ""}
+    ${painHTML(d)}
     <div class="stats"><div class="stat"><b>${r == null ? "—" : r + "%"}</b><span>達成率（${L.filter(t => t.status === "done").length}/${L.length}）</span><div class="bar"><i style="width:${r || 0}%"></i></div></div>
       <div class="stat"><b>${fmtMin(work) || "0分"}</b><span>実績 / 予定${fmtMin(plan) || "0分"}</span></div></div>
     ${late.length ? `<div class="sec">やり残し（${late.length}）</div>${late.map(t => taskHTML(t, nowISO)).join("")}` : ""}
@@ -185,6 +199,27 @@ function vDay() {
     <div class="acts" style="margin-top:14px"><button class="btn" data-log="1">＋ 時間外にやったことを記録</button></div>
     ${inbox.length && isToday ? `<div class="sec">CLAUDEに組んでもらう（${inbox.length}）</div>${inbox.map(t => `<div class="task"><div class="bd"><div class="tt">${pj(t.project_id) ? `<span class="pj" style="background:${esc(pj(t.project_id).color)}">${esc(pj(t.project_id).name)}</span>` : ""}<span class="t">${esc(t.title)}</span></div><div class="meta">次にClaudeと話したときに、予定に入れてもらえます</div></div></div>`).join("")}` : ""}`;
 }
+
+/* ---------- 今日の痛み止め（毎日1〜3つ） ---------- */
+function painHTML(d) {
+  const P = S.pains.filter(x => x.day === d), n = P.length;
+  return `<div class="card pain"><div class="hd"><b>今日の痛み止め</b><span class="${n ? "ok" : ""}">${n ? `${n}つ見つけた` : "目標 1〜3つ"}</span></div>
+    <div class="q">今日見かけた「困ってる人」「我慢して自分で工夫してる人」を一言で。</div>
+    ${n ? `<ol>${P.map((x, i) => `<li><span>${i + 1}. ${esc(x.text)}</span><button data-pdel="${x.id}" aria-label="消す">消す</button></li>`).join("")}</ol>` : ""}
+    ${n < 3 ? `<div class="add"><input class="f" id="painIn" maxlength="200" placeholder="例：コンビニで傘が倒れて困ってる人" enterkeyhint="done"><button class="btn pri" data-padd="${d}">追加</button></div>` : ""}</div>`;
+}
+async function addPain(d) {
+  const i = $("#painIn"), text = (i && i.value || "").trim(); if (!text) { i && i.focus(); return; }
+  const tmp = { id: "tmp" + Date.now(), day: d, kind: "pain", text }; S.pains.push(tmp); render();
+  const { data, error } = await sb.from("desk_notes").insert({ day: d, kind: "pain", text }).select().single();
+  if (error) { S.pains = S.pains.filter(x => x !== tmp); render(); toast("保存できませんでした"); return; }
+  Object.assign(tmp, data); toast(S.pains.filter(x => x.day === d).length >= 3 ? "今日は3つ。いい目です！" : "書きとめました");
+}
+async function delPain(id) {
+  const x = S.pains.find(p => String(p.id) === id); if (!x) return; S.pains = S.pains.filter(p => p !== x); render();
+  const { error } = await sb.from("desk_notes").delete().eq("id", x.id); if (error) { S.pains.push(x); render(); toast("消せませんでした"); }
+}
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "painIn" && !e.isComposing) { e.preventDefault(); addPain(S.day); } });
 
 /* ---------- 週 ---------- */
 function vWeek() {
@@ -312,6 +347,8 @@ document.addEventListener("click", async e => {
   const mo = e.target.closest("[data-mo]"); if (mo) { const n = +mo.dataset.mo; if (!n) S.month = today().slice(0, 7); else { const [y, m] = S.month.split("-").map(Number), d = new Date(y, m - 1 + n, 1); S.month = ymd(d).slice(0, 7); } render(); return; }
   const go = e.target.closest("[data-go]"); if (go) { S.day = go.dataset.go; S.view = "day"; render(); scrollTo(0, 0); return; }
   if (e.target.closest("[data-log]")) { logOff(); return; }
+  const pa = e.target.closest("[data-padd]"); if (pa) { addPain(pa.dataset.padd); return; }
+  const pd = e.target.closest("[data-pdel]"); if (pd) { delPain(pd.dataset.pdel); return; }
   const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
   const a = e.target.closest("[data-act]"); if (a) { const [k, id0] = a.dataset.act.split("|"), id = +id0, t = S.tasks.find(x => x.id === id); const now = new Date().toISOString();
     if (k === "start") { const dl = t.start_at ? mins(t.start_at, now) : 0; await upd(id, { status: "doing", act_start: now }); if (Math.abs(dl) >= 5) await shiftAfter(t, dl, true); }
