@@ -73,6 +73,29 @@ h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
 .pain .add{display:flex;gap:6px}
 .pain .add input{flex:1;min-width:0}
 .pain .hd .r{display:flex;align-items:center;gap:8px}
+.vo-stats{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin:2px 0 8px}
+.vo-stats b{color:var(--ink)}
+.vo-bar{display:flex;gap:6px;margin-bottom:8px}
+.vo-bar select,.vo-bar input{font-size:14px;border:1px solid var(--line);border-radius:10px;padding:7px 9px;background:var(--card);color:var(--ink);min-height:38px}
+.vo-bar input{flex:1;min-width:0}
+.vo-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;scrollbar-width:none}
+.vo-chips::-webkit-scrollbar{display:none}
+.vo-chips button{flex:none;font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 11px;white-space:nowrap}
+.vo-chips button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.vo-chips button span{opacity:.6;margin-left:3px}
+.vo{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.vo.ok{border-color:#0F7A6C;box-shadow:inset 3px 0 0 #0F7A6C}
+.vo.maybe{border-color:#B46A00;box-shadow:inset 3px 0 0 #B46A00}
+.vo.no{opacity:.5}
+.vo .top{display:flex;gap:8px;align-items:flex-start}
+.vo .tx{flex:1;min-width:0;font-size:14.5px;font-weight:500;line-height:1.5}
+.vo .mt{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.vo .bt{flex:none;display:flex;gap:4px}
+.vo .bt button{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);font-size:14px;font-weight:700;color:var(--muted);padding:0}
+.vo .bt button.on[data-vv="ok"]{background:#0F7A6C;border-color:#0F7A6C;color:#fff}
+.vo .bt button.on[data-vv="maybe"]{background:#B46A00;border-color:#B46A00;color:#fff}
+.vo .bt button.on[data-vv="no"]{background:#8A949A;border-color:#8A949A;color:#fff}
+.vo .memo{width:100%;margin-top:6px;border:0;border-top:1px dashed var(--line);padding:6px 0 0;font-size:13px;background:transparent;color:var(--ink)}
 .pgbtn{border:1px solid #0F7A6C;color:#0F7A6C;background:transparent;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
 .pg h3{margin:0 0 4px;font-size:17px}
 .pg .sub{font-size:12.5px;color:var(--muted);margin:0 0 10px}
@@ -145,6 +168,7 @@ input.f,select.f,textarea.f{width:100%;border:1px solid var(--line);background:v
   <button data-v="week"><b>☰</b>週</button>
   <button data-v="month"><b>▦</b>月</button>
   <button data-v="body"><b>💪</b>からだ</button>
+  <button data-v="voice"><b>🔍</b>痛み</button>
   <button data-v="proj"><b>◆</b>プロジェクト</button>
   <button data-v="add"><b>＋</b>追加</button>
 </nav>
@@ -175,7 +199,7 @@ async function load() {
   const [t, p, n, pn, bd] = await Promise.all([
     sb.from("desk_tasks").select("*").or(`and(day.gte.${from},day.lte.${to}),status.eq.inbox,and(status.eq.todo,day.lt.${today()})`).order("start_at", { ascending: true, nullsFirst: false }),
     sb.from("desk_projects").select("*").order("sort"),
-    sb.from("desk_notes").select("*").not("kind", "in", "(pain,meal,workout,body)").order("created_at", { ascending: false }).limit(20),
+    sb.from("desk_notes").select("*").not("kind", "in", "(pain,meal,workout,body,voice)").order("created_at", { ascending: false }).limit(20),
     sb.from("desk_notes").select("*").eq("kind", "pain").gte("day", from).order("created_at", { ascending: true }),
     sb.from("desk_notes").select("*").in("kind", ["meal", "workout", "body"]).gte("day", addDays(today(), -120)).order("created_at", { ascending: true })]);
   if (t.error || p.error) { toast("読み込めませんでした"); return; }
@@ -264,6 +288,52 @@ const PAIN_GUIDE = [
   ["みんなが諦めている欠点", "「そういうものだから」で済まされている欠点は？", "Dyson：すぐ吸わなくなる紙パックをなくした"],
   ["現場の人だけが知る不便", "その仕事の人だけが毎日感じている不便は？", "Flow Hive：養蜂家の親子が採蜜の重労働をなくした"]
 ];
+/* ---------- 痛みの声（desk_notes kind=voice、textにJSON {g,t,s,b,v,memo,n}） ---------- */
+const VO = { list: null, loading: false, mark: "todo", g: "all", q: "", shown: 50 };
+try { const f = JSON.parse(localStorage.getItem("desk.vo") || "{}"); if (f.mark) VO.mark = f.mark; if (f.g) VO.g = f.g; } catch (e) {}
+const voSave = () => { try { localStorage.setItem("desk.vo", JSON.stringify({ mark: VO.mark, g: VO.g })); } catch (e) {} };
+async function voLoad() {
+  if (VO.loading) return; VO.loading = true; let all = [], from = 0;
+  while (true) {
+    const { data, error } = await sb.from("desk_notes").select("id,day,text,created_at").eq("kind", "voice").order("created_at", { ascending: true }).range(from, from + 999);
+    if (error) { VO.loading = false; toast("痛みの声を読み込めませんでした"); return; }
+    all = all.concat(data); if (data.length < 1000) break; from += 1000;
+  }
+  VO.list = all.map(r => { let j = {}; try { j = JSON.parse(r.text); } catch (e) {} return { id: r.id, day: r.day, ...j }; });
+  VO.loading = false; if (S.view === "voice") render();
+}
+function vVoice() {
+  if (!VO.list) { voLoad(); return `<div class="empty">痛みの声を読み込んでいます…</div>`; }
+  const all = VO.list, c = { ok: 0, maybe: 0, no: 0 }; all.forEach(x => { if (c[x.v] != null) c[x.v]++; });
+  const todo = all.length - c.ok - c.maybe - c.no;
+  const m = all.filter(x => VO.mark === "all" || (VO.mark === "todo" ? !x.v : x.v === VO.mark)).filter(x => !VO.q || ((x.t || "") + (x.memo || "")).includes(VO.q));
+  const gs = {}; m.forEach(x => gs[x.g] = (gs[x.g] || 0) + 1); if (VO.g !== "all" && !gs[VO.g]) VO.g = "all";
+  const rows = m.filter(x => VO.g === "all" || x.g === VO.g).sort((a, b) => a.day === b.day ? (a.n || 0) - (b.n || 0) : a.day < b.day ? 1 : -1);
+  const last = all.length ? all[all.length - 1] : null;
+  return `<h2 style="margin:4px 0 2px">痛みの声</h2>
+    <div class="vo-stats"><span>全<b>${all.length}</b>件</span><span>未判定 <b>${todo}</b></span><span style="color:#0F7A6C">◯ <b>${c.ok}</b></span><span style="color:#B46A00">△ <b>${c.maybe}</b></span><span>× <b>${c.no}</b></span>${last ? `<span>最新：${esc(last.b || last.day)}</span>` : ""}</div>
+    <div class="vo-bar"><select id="voMark" aria-label="判定で絞り込む">${[["todo", "未判定"], ["all", "すべて"], ["ok", "◯だけ"], ["maybe", "△だけ"], ["no", "×だけ"]].map(([k, l]) => `<option value="${k}"${VO.mark === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+      <input id="voQ" type="search" placeholder="言葉で探す" value="${esc(VO.q)}"><button class="pgbtn" data-pguide>見つけ方</button></div>
+    <div class="vo-chips"><button data-vg="all" class="${VO.g === "all" ? "on" : ""}">すべて<span>${m.length}</span></button>${Object.entries(gs).sort((a, b) => b[1] - a[1]).map(([g, n]) => `<button data-vg="${esc(g)}" class="${VO.g === g ? "on" : ""}">${esc(g)}<span>${n}</span></button>`).join("")}</div>
+    ${!all.length ? `<div class="empty">まだ声がありません。毎週月曜の朝にClaudeが集めて追加します。</div>` : !rows.length ? `<div class="empty">この条件の声はありません。</div>` :
+      rows.slice(0, VO.shown).map(x => `<div class="vo ${x.v || ""}" data-voi="${x.id}"><div class="top"><div class="tx">${esc(x.t)}<div class="mt">${esc(x.g)}・${esc(x.s)}</div></div>
+      <div class="bt">${[["ok", "◯"], ["maybe", "△"], ["no", "×"]].map(([k, l]) => `<button data-vv="${k}" class="${x.v === k ? "on" : ""}" aria-label="${l}">${l}</button>`).join("")}</div></div>
+      <input class="memo" data-vomemo="${x.id}" value="${esc(x.memo || "")}" placeholder="メモ（誰が困ってる？どう解決できそう？）"></div>`).join("")
+      + (rows.length > VO.shown ? `<button class="btn" data-vomore style="display:block;margin:4px auto 0">さらに表示（残り${rows.length - VO.shown}件）</button>` : "")}`;
+}
+async function voSet(id, patch) {
+  const x = VO.list.find(v => String(v.id) === String(id)); if (!x) return; const prev = { v: x.v, memo: x.memo };
+  Object.assign(x, patch); if ("v" in patch) render();
+  const { id: _i, day: _d, ...body } = x;
+  const { error } = await sb.from("desk_notes").update({ text: JSON.stringify(body) }).eq("id", x.id);
+  if (error) { Object.assign(x, prev); render(); toast("保存できませんでした"); }
+}
+document.addEventListener("change", e => {
+  if (e.target.id === "voMark") { VO.mark = e.target.value; VO.shown = 50; voSave(); render(); return; }
+  const mm = e.target.dataset && e.target.dataset.vomemo; if (mm) voSet(mm, { memo: e.target.value.trim() });
+});
+document.addEventListener("input", e => { if (e.target.id === "voQ") { clearTimeout(VO.qt); VO.qt = setTimeout(() => { VO.q = e.target.value.trim(); VO.shown = 50; render(); const q = $("#voQ"); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 400); } });
+
 function painGuide() {
   openSheet(`<div class="pg"><h3>痛み止めの見つけ方</h3><p class="sub">見かけた困りごとが、どれかに当てはまらないか考える。</p>
     <ol>${PAIN_GUIDE.map(([t, a, e], i) => `<li><b>${i + 1}. ${t}</b><div class="a">${a}</div><div class="e">${e}</div></li>`).join("")}</ol>
@@ -478,7 +548,7 @@ function skipTask(t) {
 /* ---------- 画面 ---------- */
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
-  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, body: vBody, proj: vProj, add: vAdd })[S.view]();
+  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, body: vBody, voice: vVoice, proj: vProj, add: vAdd })[S.view]();
 }
 document.addEventListener("click", async e => {
   const tab = e.target.closest("#tabs button"); if (tab) { S.view = tab.dataset.v; if (S.view === "day") S.day = today(); render(); scrollTo(0, 0); return; }
@@ -490,6 +560,9 @@ document.addEventListener("click", async e => {
   const bq = e.target.closest("[data-bq]"); if (bq) { bodyForm(bq.dataset.bq); return; }
   const bdl = e.target.closest("[data-bdel]"); if (bdl) { bodyDel(bdl.dataset.bdel); return; }
   if (e.target.closest("[data-pguide]")) { painGuide(); return; }
+  const vg = e.target.closest("[data-vg]"); if (vg) { VO.g = vg.dataset.vg; VO.shown = 50; voSave(); render(); return; }
+  const vv = e.target.closest("[data-vv]"); if (vv) { const id = vv.closest("[data-voi]").dataset.voi, x = VO.list.find(v => String(v.id) === id); voSet(id, { v: x.v === vv.dataset.vv ? "" : vv.dataset.vv }); return; }
+  if (e.target.closest("[data-vomore]")) { VO.shown += 50; render(); return; }
   const pa = e.target.closest("[data-padd]"); if (pa) { addPain(pa.dataset.padd); return; }
   const pd = e.target.closest("[data-pdel]"); if (pd) { delPain(pd.dataset.pdel); return; }
   const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
