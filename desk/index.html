@@ -72,6 +72,17 @@ h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
 .pain li button{flex:none;border:0;background:none;color:var(--muted);font-size:12px;padding:2px 4px}
 .pain .add{display:flex;gap:6px}
 .pain .add input{flex:1;min-width:0}
+.pain .hd .r{display:flex;align-items:center;gap:8px}
+.pgbtn{border:1px solid #0F7A6C;color:#0F7A6C;background:transparent;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.pg h3{margin:0 0 4px;font-size:17px}
+.pg .sub{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.pg ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.pg li{border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.pg li b{font-size:14px;display:block}
+.pg li .a{font-size:13.5px;color:#0F7A6C;font-weight:600;margin:2px 0}
+.pg li .e{font-size:12.5px;color:var(--muted)}
+.pg .chk{margin-top:12px;background:rgba(15,122,108,.08);border-radius:10px;padding:10px 12px;font-size:13px}
+.pg .chk b{color:#0F7A6C}
 .bd-plan{border-left:6px solid #c0552f}
 .bd-plan h3{margin:0 0 2px;font-size:17px}
 .qadd{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
@@ -225,7 +236,7 @@ function vDay() {
 /* ---------- 今日の痛み止め（毎日1〜3つ） ---------- */
 function painHTML(d) {
   const P = S.pains.filter(x => x.day === d), n = P.length;
-  return `<div class="card pain"><div class="hd"><b>今日の痛み止め</b><span class="${n ? "ok" : ""}">${n ? `${n}つ見つけた` : "目標 1〜3つ"}</span></div>
+  return `<div class="card pain"><div class="hd"><b>今日の痛み止め</b><span class="r"><span class="${n ? "ok" : ""}">${n ? `${n}つ見つけた` : "目標 1〜3つ"}</span><button class="pgbtn" data-pguide>見つけ方</button></span></div>
     <div class="q">今日見かけた「困ってる人」「我慢して自分で工夫してる人」を一言で。</div>
     ${n ? `<ol>${P.map((x, i) => `<li><span>${i + 1}. ${esc(x.text)}</span><button data-pdel="${x.id}" aria-label="消す">消す</button></li>`).join("")}</ol>` : ""}
     ${n < 3 ? `<div class="add"><input class="f" id="painIn" maxlength="200" placeholder="例：コンビニで傘が倒れて困ってる人" enterkeyhint="done"><button class="btn pri" data-padd="${d}">追加</button></div>` : ""}</div>`;
@@ -240,6 +251,25 @@ async function addPain(d) {
 async function delPain(id) {
   const x = S.pains.find(p => String(p.id) === id); if (!x) return; S.pains = S.pains.filter(p => p !== x); render();
   const { error } = await sb.from("desk_notes").delete().eq("id", x.id); if (error) { S.pains.push(x); render(); toast("消せませんでした"); }
+}
+const PAIN_GUIDE = [
+  ["自分で工夫している人", "みんな何で代用してる？テープ・手作り・改造は？", "Spanx：ストッキングの足先を自分で切って履いていた"],
+  ["毎月払っているお金を置き換える", "これに毎月いくら払わされてる？", "UGREEN NAS 10.2億円：クラウド月額から抜けられる"],
+  ["毎日使う安物を格上げ", "毎日触るのに安く済ませているものは？不調とつながらない？", "BAKUNE：パジャマ×疲れが取れない"],
+  ["手の弱い人に合わせる", "お年寄り・子連れ・初心者でも使える？", "OXO：関節炎の妻のために太い持ち手のピーラー"],
+  ["狭い家・小さく", "半分の大きさ・半分の手間にならない？", "Elfin Flip 9.3億円：狭い部屋でテレビの代わり"],
+  ["不安を消す", "みんな何が心配で何度も確認してる？", "Ring：チャイムが聞こえない→スマホで出られる"],
+  ["毎回のやり直し・忘れ物", "毎回やり直している作業、忘れるものは？", "Dropbox：USBを忘れた日に思いついた"],
+  ["業者に頼むと高いものを自分で", "外注すると高いもの、自分でできたら嬉しい人は？", "eufyMake E1 4,670万ドル：家でグッズ印刷（世界1位）"],
+  ["みんなが諦めている欠点", "「そういうものだから」で済まされている欠点は？", "Dyson：すぐ吸わなくなる紙パックをなくした"],
+  ["現場の人だけが知る不便", "その仕事の人だけが毎日感じている不便は？", "Flow Hive：養蜂家の親子が採蜜の重労働をなくした"]
+];
+function painGuide() {
+  openSheet(`<div class="pg"><h3>痛み止めの見つけ方</h3><p class="sub">見かけた困りごとが、どれかに当てはまらないか考える。</p>
+    <ol>${PAIN_GUIDE.map(([t, a, e], i) => `<li><b>${i + 1}. ${t}</b><div class="a">${a}</div><div class="e">${e}</div></li>`).join("")}</ol>
+    <div class="chk"><b>強さチェック</b>　毎日起きる？／もうお金か時間を払ってる？／自分で工夫してる人がいる？　→ 3つとも「はい」なら強い痛み止め</div>
+    <div style="margin-top:12px;text-align:right"><button class="btn" data-pgclose>閉じる</button></div></div>`,
+    () => { $("#sheetIn").querySelector("[data-pgclose]").onclick = closeSheet; });
 }
 document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "painIn" && !e.isComposing) { e.preventDefault(); addPain(S.day); } });
 
@@ -459,6 +489,7 @@ document.addEventListener("click", async e => {
   if (e.target.closest("[data-log]")) { logOff(); return; }
   const bq = e.target.closest("[data-bq]"); if (bq) { bodyForm(bq.dataset.bq); return; }
   const bdl = e.target.closest("[data-bdel]"); if (bdl) { bodyDel(bdl.dataset.bdel); return; }
+  if (e.target.closest("[data-pguide]")) { painGuide(); return; }
   const pa = e.target.closest("[data-padd]"); if (pa) { addPain(pa.dataset.padd); return; }
   const pd = e.target.closest("[data-pdel]"); if (pd) { delPain(pd.dataset.pdel); return; }
   const st = e.target.closest("[data-step]"); if (st) { const [id, i] = st.dataset.step.split("|").map(Number), t = S.tasks.find(x => x.id === id); const steps = t.steps.map((s, k) => k === i ? { ...s, done: st.checked } : s); await upd(id, { steps }); return; }
