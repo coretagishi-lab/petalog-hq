@@ -159,6 +159,12 @@ input.f,select.f,textarea.f{width:100%;border:1px solid var(--line);background:v
 .login{max-width:360px;margin:12vh auto 0}
 .pill{display:inline-block;font-size:11px;border-radius:999px;padding:1px 8px;background:var(--soft);color:var(--ink2);font-weight:600}
 .diff.over{color:var(--bad)}.diff.under{color:var(--ok)}
+.kanban{display:block;text-decoration:none;color:#fff;background:linear-gradient(135deg,#1b1b2f 0%,#3a1c4a 55%,#c2185b 100%);border-radius:18px;padding:16px 18px 14px;margin:0 0 14px;box-shadow:0 6px 18px rgba(0,0,0,.18);position:relative;overflow:hidden}
+.kanban::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.07)}
+.kanban .k1{font-size:11px;letter-spacing:.18em;opacity:.75;font-weight:700}
+.kanban .k2{font-size:26px;line-height:1.3;font-weight:900;margin:6px 0 8px;letter-spacing:.02em;text-wrap:balance}
+.kanban .k3{font-size:13px;opacity:.9;line-height:1.6}
+.kanban .k4{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;font-weight:800;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:5px 12px}
 </style>
 </head>
 <body>
@@ -546,9 +552,15 @@ function skipTask(t) {
 }
 
 /* ---------- 画面 ---------- */
+/* ---------- 看板（毎日見る言葉） ---------- */
+const KANBAN = `<a class="kanban" href="https://youtube.com/shorts/OEsLp7wvOck" target="_blank" rel="noopener">
+  <div class="k1">毎日の看板 ／ 加藤純一</div>
+  <div class="k2">勝つまでやるから、<br>始めた時点で俺の勝ち。</div>
+  <div class="k3">起きてトイレしたら、配信をつける。<br>やらないと消えるから。<br>とにかく量。量が一丁目一番地。</div>
+  <span class="k4">▶ 動画を見る</span></a>`;
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
-  $("#main").innerHTML = ({ day: vDay, week: vWeek, month: vMonth, body: vBody, voice: vVoice, proj: vProj, add: vAdd })[S.view]();
+  $("#main").innerHTML = KANBAN + ({ day: vDay, week: vWeek, month: vMonth, body: vBody, voice: vVoice, proj: vProj, add: vAdd })[S.view]();
 }
 document.addEventListener("click", async e => {
   const tab = e.target.closest("#tabs button"); if (tab) { S.view = tab.dataset.v; if (S.view === "day") S.day = today(); render(); scrollTo(0, 0); return; }
