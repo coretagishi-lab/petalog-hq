@@ -16,7 +16,7 @@
   --r:14px;--sh:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
   --page:#121212;--card:#1c1c1c;--ink:#f1f0ec;--ink2:#bdbab2;--muted:#8a877f;--line:#2e2d2a;--soft:#262522;--acc:#7f9cff;--sh:none}}
-*{box-sizing:border-box}
+*{box-sizing:border-box;touch-action:manipulation}
 html,body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -164,7 +164,22 @@ input.f,select.f,textarea.f{width:100%;border:1px solid var(--line);background:v
 .kanban .k1{font-size:11px;letter-spacing:.18em;opacity:.75;font-weight:700}
 .kanban .k2{font-size:26px;line-height:1.3;font-weight:900;margin:6px 0 8px;letter-spacing:.02em;text-wrap:balance}
 .kanban .k3{font-size:13px;opacity:.9;line-height:1.6}
-.kanban .k5{margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.4);font-size:19px;line-height:1.4;font-weight:900}
+.today-pj{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:6px 14px;margin:0 0 14px}
+.today-pj .hd{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;padding:6px 0 2px}
+.tp{display:block;padding:9px 0;border-top:1px solid var(--line)}
+.tp:first-of-type{border-top:0}
+.tp .row{display:flex;align-items:center;gap:8px}
+.tp .nm{font-weight:800;font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;background:none;border:0;padding:0;color:var(--ink)}
+.tp .nm::after{content:" ›";color:var(--muted);font-weight:400}
+.tp .v{font-size:12px;color:var(--ink2);white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+.tp .bar{margin-top:6px}
+.tp .sub2{font-size:12px;color:var(--muted);margin-top:3px}
+.tp .cnts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cnt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:12.5px;background:var(--soft)}
+.cnt b{font-variant-numeric:tabular-nums}
+.cnt button{border:0;background:var(--card);border-radius:999px;width:28px;height:28px;font-size:16px;font-weight:800;color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.cnt.ok{background:color-mix(in srgb,var(--ok) 14%,var(--card));border-color:var(--ok)}
+.kanban .k5{margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.4);font-size:17px;line-height:1.45;font-weight:900}
 .kanban .k5::before{content:"自分の心構え";display:block;font-size:11px;letter-spacing:.18em;opacity:.75;font-weight:700;margin-bottom:4px}
 .kanban .k4{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;font-weight:800;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:5px 12px}
 </style>
@@ -207,11 +222,12 @@ async function load() {
   const [t, p, n, pn, bd] = await Promise.all([
     sb.from("desk_tasks").select("*").or(`and(day.gte.${from},day.lte.${to}),status.eq.inbox,and(status.eq.todo,day.lt.${today()})`).order("start_at", { ascending: true, nullsFirst: false }),
     sb.from("desk_projects").select("*").order("sort"),
-    sb.from("desk_notes").select("*").not("kind", "in", "(pain,meal,workout,body,voice)").order("created_at", { ascending: false }).limit(20),
+    sb.from("desk_notes").select("*").not("kind", "in", "(pain,meal,workout,body,voice,pv,daily)").order("created_at", { ascending: false }).limit(20),
     sb.from("desk_notes").select("*").eq("kind", "pain").gte("day", from).order("created_at", { ascending: true }),
     sb.from("desk_notes").select("*").in("kind", ["meal", "workout", "body"]).gte("day", addDays(today(), -120)).order("created_at", { ascending: true })]);
   if (t.error || p.error) { toast("読み込めませんでした"); return; }
   S.tasks = t.data; S.projects = p.data; S.notes = n.data || []; S.pains = pn.data || []; S.body = (bd.data || []).map(bodyParse); render();
+  loadDaily();
 }
 async function upd(id, patch) {
   const t = S.tasks.find(x => x.id === id); Object.assign(t, patch, { updated_at: new Date().toISOString() }); render();
@@ -476,7 +492,7 @@ function vProj() {
     const done = T.filter(t => t.status === "done").length, open = T.filter(t => t.status === "todo" || t.status === "doing").length;
     const pc = p.goal_value && p.current_value != null ? Math.min(100, Math.round(p.current_value / p.goal_value * 100)) : null;
     const left = p.due ? Math.ceil((new Date(p.due + "T00:00") - new Date(today() + "T00:00")) / 864e5) : null;
-    return `<div class="card pjc" style="border-left-color:${esc(p.color)}"><h3>${esc(p.emoji ? p.emoji + " " : "")}${esc(p.name)}</h3>
+    return `<div class="card pjc" id="pj-${p.id}" style="border-left-color:${esc(p.color)}"><h3>${esc(p.emoji ? p.emoji + " " : "")}${esc(p.name)}</h3>
       ${p.goal ? `<div class="sub">目標：${esc(p.goal)}${left != null ? `（あと${left}日）` : ""}</div>` : ""}
       ${pc != null ? `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px"><span>${Number(p.current_value).toLocaleString()} / ${Number(p.goal_value).toLocaleString()}${esc(p.goal_unit || "")}</span><b>${pc}%</b></div><div class="bar"><i style="width:${pc}%;background:${esc(p.color)}"></i></div>` : ""}
       <dl class="kv"><dt>次の一手</dt><dd>${esc(p.next_step || "—")}</dd>${p.good ? `<dt>うまくいってる</dt><dd class="ok">${esc(p.good)}</dd>` : ""}${p.issues ? `<dt>解決すること</dt><dd>${esc(p.issues)}</dd>` : ""}${p.behind ? `<dt>遅れている</dt><dd class="bad">${esc(p.behind)}</dd>` : ""}
@@ -554,6 +570,67 @@ function skipTask(t) {
 }
 
 /* ---------- 画面 ---------- */
+/* ---------- 今日のプロジェクト（看板の下。毎日の進み具合） ---------- */
+// 毎日の目標はここで変える
+const DAILY = { dcComments: 5, petaPost: 1, petaCall: 5, protein: 110 };
+const PV_FEE = 20000, PV_NET = Math.round(20000 * (1 - 0.1021));   // 源泉徴収10.21%を引いた振込額
+S.daily = { dc: null, pv: null, row: null, v: {} };
+async function loadDaily() {
+  const d = today(), m0 = d.slice(0, 8) + "01";
+  const [pv, dl, dc] = await Promise.all([
+    sb.from("desk_notes").select("id,day,text").eq("kind", "pv").gte("day", m0),
+    sb.from("desk_notes").select("id,day,text").eq("kind", "daily").eq("day", d).limit(1),
+    sb.from("dcout_people").select("data")]);
+  S.daily.pv = (pv.data || []).reduce((a, r) => { try { return a + (JSON.parse(r.text).n || 0); } catch (e) { return a; } }, 0);
+  S.daily.row = (dl.data || [])[0] || null; try { S.daily.v = S.daily.row ? JSON.parse(S.daily.row.text) : {}; } catch (e) { S.daily.v = {}; }
+  if (!dc.error) { const st = new Date(d + "T00:00").getTime(), en = st + 864e5; let c = 0;
+    (dc.data || []).forEach(r => ((r.data && r.data.events) || []).forEach(ev => { const t = Date.parse(ev.at); if (ev.kind === "sent" && t >= st && t < en) c++; }));
+    S.daily.dc = c; }
+  if (S.view === "day") render();
+}
+async function bumpDaily(key, delta) {
+  const v = { ...S.daily.v }; v[key] = Math.max(0, (v[key] || 0) + delta); S.daily.v = v; render();
+  const text = JSON.stringify(v);
+  if (S.daily.row) { const { error } = await sb.from("desk_notes").update({ text }).eq("id", S.daily.row.id); if (error) toast("保存できませんでした"); }
+  else { const { data, error } = await sb.from("desk_notes").insert({ day: today(), kind: "daily", text }).select().single(); if (error) toast("保存できませんでした"); else S.daily.row = data; }
+}
+async function addPV() {
+  S.daily.pv = (S.daily.pv || 0) + 1; render();
+  const { error } = await sb.from("desk_notes").insert({ day: today(), kind: "pv", text: JSON.stringify({ n: 1 }) });
+  if (error) { S.daily.pv--; render(); toast("記録できませんでした"); } else toast(`今月${S.daily.pv}本目を記録しました`);
+}
+const yen = n => "¥" + Math.round(n).toLocaleString();
+function cntHTML(key, label, goal) {
+  const n = S.daily.v[key] || 0;
+  return `<span class="cnt ${n >= goal ? "ok" : ""}">${label} <b>${n}/${goal}</b><button data-cnt="${key}|-1" aria-label="${label}を1つ減らす">−</button><button data-cnt="${key}|1" aria-label="${label}を1つ増やす">＋</button></span>`;
+}
+function todayPjHTML() {
+  const P = S.projects.filter(p => p.status !== "archived");
+  if (!P.length) return "";
+  const bar = (pc, color) => `<div class="bar"><i style="width:${Math.max(0, Math.min(100, pc))}%;background:${esc(color)}"></i></div>`;
+  const rows = P.map(p => {
+    let v = "", body = "";
+    if (/ドラコレ/.test(p.name)) {
+      const c = S.daily.dc; v = c == null ? "読み込み中" : `営業 ${c}/${DAILY.dcComments}件`;
+      body = bar(c ? c / DAILY.dcComments * 100 : 0, p.color) + `<div class="sub2">営業アプリで送ったコメント・DMの数（自動）</div>`;
+    } else if (/ぺたろぐ/.test(p.name)) {
+      const a = Math.min(S.daily.v.post || 0, DAILY.petaPost), b = Math.min(S.daily.v.call || 0, DAILY.petaCall);
+      v = `${Math.round((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100)}%`;
+      body = bar((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100, p.color) + `<div class="cnts">${cntHTML("post", "投稿", DAILY.petaPost)}${cntHTML("call", "声かけ", DAILY.petaCall)}</div>`;
+    } else if (/VTuber/i.test(p.name)) {
+      v = "準備中"; body = `<div class="sub2">今後：新人の配信を見て、使ってもらうアピール</div>`;
+    } else if (/PV/.test(p.name)) {
+      const n = S.daily.pv; v = n == null ? "読み込み中" : `今月 ${n}本`;
+      body = n == null ? "" : `<div class="sub2">売上 ${yen(n * PV_FEE)} ・ 振込（源泉10.21%引き）${yen(n * PV_NET)}</div><div class="cnts"><span class="cnt">納品したら <button data-pvadd style="width:auto;padding:0 10px;font-size:12.5px">＋1本</button></span></div>`;
+    } else if (/マッチョ/.test(p.name)) {
+      const B = S.body.filter(x => x.day === today()), pro = B.filter(x => x.kind === "meal").reduce((a, x) => a + (+(x.v && x.v.protein) || 0), 0), wk = B.some(x => x.kind === "workout");
+      v = `${wk ? "筋トレ✓" : "筋トレまだ"}・たんぱく質${pro}/${DAILY.protein}g`; body = bar(pro / DAILY.protein * 100, p.color);
+    } else { v = ""; }
+    return `<div class="tp"><div class="row"><button class="nm" data-pjgo="${p.id}">${esc(p.emoji ? p.emoji + " " : "")}${esc(p.name)}</button><span class="v">${v}</span></div>${body}</div>`;
+  }).join("");
+  return `<div class="today-pj"><div class="hd">プロジェクト（タップで中身へ）</div>${rows}</div>`;
+}
+
 /* ---------- 看板（毎日見る言葉） ---------- */
 const KANBAN = `<a class="kanban" href="https://youtube.com/shorts/OEsLp7wvOck" target="_blank" rel="noopener">
   <div class="k1">毎日の看板 ／ 加藤純一</div>
@@ -563,7 +640,7 @@ const KANBAN = `<a class="kanban" href="https://youtube.com/shorts/OEsLp7wvOck" 
   <span class="k4">▶ 動画を見る</span></a>`;
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
-  $("#main").innerHTML = KANBAN + ({ day: vDay, week: vWeek, month: vMonth, body: vBody, voice: vVoice, proj: vProj, add: vAdd })[S.view]();
+  $("#main").innerHTML = (S.view === "day" && S.day === today() ? KANBAN + todayPjHTML() : "") + ({ day: vDay, week: vWeek, month: vMonth, body: vBody, voice: vVoice, proj: vProj, add: vAdd })[S.view]();
 }
 document.addEventListener("click", async e => {
   const tab = e.target.closest("#tabs button"); if (tab) { S.view = tab.dataset.v; if (S.view === "day") S.day = today(); render(); scrollTo(0, 0); return; }
@@ -575,6 +652,9 @@ document.addEventListener("click", async e => {
   const bq = e.target.closest("[data-bq]"); if (bq) { bodyForm(bq.dataset.bq); return; }
   const bdl = e.target.closest("[data-bdel]"); if (bdl) { bodyDel(bdl.dataset.bdel); return; }
   if (e.target.closest("[data-pguide]")) { painGuide(); return; }
+  const pg = e.target.closest("[data-pjgo]"); if (pg) { S.view = "proj"; render(); const el = document.getElementById("pj-" + pg.dataset.pjgo); if (el) { el.scrollIntoView({ block: "start" }); scrollBy(0, -10); el.animate([{ boxShadow: "0 0 0 3px var(--acc)" }, { boxShadow: "none" }], { duration: 1400 }); } return; }
+  const cn = e.target.closest("[data-cnt]"); if (cn) { const [k, dv] = cn.dataset.cnt.split("|"); bumpDaily(k, +dv); return; }
+  if (e.target.closest("[data-pvadd]")) { addPV(); return; }
   const vg = e.target.closest("[data-vg]"); if (vg) { VO.g = vg.dataset.vg; VO.shown = 50; voSave(); render(); return; }
   const vv = e.target.closest("[data-vv]"); if (vv) { const id = vv.closest("[data-voi]").dataset.voi, x = VO.list.find(v => String(v.id) === id); voSet(id, { v: x.v === vv.dataset.vv ? "" : vv.dataset.vv }); return; }
   if (e.target.closest("[data-vomore]")) { VO.shown += 50; render(); return; }
