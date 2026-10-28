@@ -773,7 +773,7 @@ function todayPjHTML() {
       const a = Math.min(S.daily.v.post || 0, DAILY.petaPost), b = Math.min(S.daily.v.call || 0, DAILY.petaCall);
       v = `${Math.round((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100)}%`;
       body = bar((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100, p.color) + `<div class="cnts">${cntHTML("post", "投稿", DAILY.petaPost)}${cntHTML("call", "声かけ", DAILY.petaCall)}</div>`;
-    } else if (/VTuber|Vラボ/i.test(p.name)) {
+    } else if (/VTuber|Vラボ|Vぶい/i.test(p.name)) {
       v = "準備中"; body = `<div class="sub2">今後：新人の配信を見て、使ってもらうアピール</div>`;
     } else if (/PV/.test(p.name)) {
       const n = S.daily.pv; v = n == null ? "読み込み中" : `今月 ${n}本`;
