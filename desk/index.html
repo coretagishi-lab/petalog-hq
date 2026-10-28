@@ -774,7 +774,7 @@ function todayPjHTML() {
       v = `${Math.round((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100)}%`;
       body = bar((a + b) / (DAILY.petaPost + DAILY.petaCall) * 100, p.color) + `<div class="cnts">${cntHTML("post", "投稿", DAILY.petaPost)}${cntHTML("call", "声かけ", DAILY.petaCall)}</div>`;
     } else if (/VTuber|Vラボ|Vぶい/i.test(p.name)) {
-      v = "準備中"; body = `<div class="sub2">今後：新人の配信を見て、使ってもらうアピール</div>`;
+      v = "公開済み"; body = `<div class="sub2">次：最初の登録者を見つけて配信を見に行く</div>`;
     } else if (/PV/.test(p.name)) {
       const n = S.daily.pv; v = n == null ? "読み込み中" : `今月 ${n}本`;
       body = n == null ? "" : `<div class="sub2">売上 ${yen(n * PV_FEE)} ・ 振込（源泉10.21%引き）${yen(n * PV_NET)}</div><div class="cnts"><span class="cnt">納品したら <button data-pvadd style="width:auto;padding:0 10px;font-size:12.5px">＋1本</button></span></div>`;
