@@ -220,7 +220,7 @@ async function userStats(cached) {
   const U = USTATS;
   const us = U.users || [], ok = U.sum_users === U.total;
   el.innerHTML = `<div class="kv" style="margin-bottom:10px">
-      <span>アカウント数</span><b>${nf(us.length)}人（うちスタンプ1枚以上 ${nf(us.filter(u => u.stamps > 0).length)}人）</b>
+      <span>アカウント数</span><b>${nf(us.length)}人（本部をふくむ。上の「登録者」は本部を除いた ${nf(us.filter(u => !u.admin).length)}人）・スタンプ1枚以上 ${nf(us.filter(u => u.stamps > 0).length)}人</b>
       <span>ユーザー別の合計</span><b>${nf(U.sum_users)}枚（本部 ${nf(U.sum_admin)}枚 ＋ ほかの人 ${nf(U.sum_users - U.sum_admin)}枚）</b>
       <span>スタンプ総数（全員）</span><b>${nf(U.total)}枚 ${ok ? "… 一致しています" : `… <span style="color:var(--bad,#c0392b)">${nf(U.total - U.sum_users)}枚ずれています（持ち主が消えたスタンプ ${nf(U.orphan)}枚）</span>`}</b></div>
     <div class="scroll"><table><thead><tr><th>順位</th><th>ニックネーム</th><th style="text-align:right">登録スタンプ</th><th style="text-align:right">うち押しただけ</th><th>最終活動</th><th>登録日</th></tr></thead><tbody>
