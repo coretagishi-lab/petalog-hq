@@ -205,6 +205,22 @@ async function config() {
       if (k === "yahoo_appid" && !val) continue; const { error } = await sb.rpc("hq_config_set", { p_key: k, p_value: val }); if (error) { m.textContent = "保存できませんでした: " + (error.message || ""); return; } }
     m.textContent = "保存しました（アプリは次に開いたときから反映）"; };
 }
+/* ---------- ユーザー別（A1） ---------- */
+const jst = t => { if (!t) return "—"; const d = new Date(new Date(t).getTime() + 9 * 3600e3); return `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`; };
+async function userStats() {
+  const el = $("#uStats"); if (!el) return;
+  const { data: U, error } = await sb.rpc("hq_user_stats");
+  if (error || !U) { el.innerHTML = `<p class="muted">読み込めませんでした：${esc((error && error.message) || "")}</p>`; return; }
+  const us = U.users || [], ok = U.sum_users === U.total;
+  el.innerHTML = `<div class="kv" style="margin-bottom:10px">
+      <span>アカウント数</span><b>${nf(us.length)}人（うちスタンプ1枚以上 ${nf(us.filter(u => u.stamps > 0).length)}人）</b>
+      <span>ユーザー別の合計</span><b>${nf(U.sum_users)}枚（本部 ${nf(U.sum_admin)}枚 ＋ ほかの人 ${nf(U.sum_users - U.sum_admin)}枚）</b>
+      <span>スタンプ総数（全員）</span><b>${nf(U.total)}枚 ${ok ? "… 一致しています" : `… <span style="color:var(--bad,#c0392b)">${nf(U.total - U.sum_users)}枚ずれています（持ち主が消えたスタンプ ${nf(U.orphan)}枚）</span>`}</b></div>
+    <div class="scroll"><table><thead><tr><th>順位</th><th>ニックネーム</th><th style="text-align:right">登録スタンプ</th><th style="text-align:right">うち押しただけ</th><th>最終活動</th><th>登録日</th></tr></thead><tbody>
+    ${us.map((u, i) => `<tr><td>${i + 1}</td><td>${u.nick ? esc(u.nick) : `<span class="muted">（未設定）</span>`} <span class="muted" style="font-size:11px">${esc(u.short)}</span>${u.admin ? ` <span class="muted" style="font-size:11px">本部</span>` : ""}</td><td style="text-align:right"><b>${nf(u.stamps)}</b></td><td style="text-align:right">${u.ghost ? nf(u.ghost) : ""}</td><td>${jst(u.last_at)}</td><td>${jst(u.joined).slice(0, 10)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="muted" style="font-size:11.5px;margin:8px 0 0">「押しただけ」＝その場で押した記録だけで、写真のないスタンプ。最終活動＝ログイン・スタンプの保存・設定の保存・アプリの操作のうち、いちばん新しい時刻（日本時間）。名前の横の6文字はアカウントの見分け用です。</p>`;
+}
 /* ---------- 画面 ---------- */
 async function load() {
   if (!sb) { gate("サーバーに接続できませんでした。"); return; }
@@ -213,7 +229,7 @@ async function load() {
   $("#main").innerHTML = `<div class="gate"><p>集計しています…</p></div>`;
   const { data, error } = await sb.rpc("hq_dashboard", { p_days: DAYS });
   if (error) { if (/not_admin/.test(error.message || "")) { await sb.auth.signOut().catch(() => {}); loginForm("このアカウントでは見られません。本部のアカウントでログインしてください。"); } else gate("読み込めませんでした：" + esc(error.message || "")); return; }
-  DATA = data; render(data); ops();
+  DATA = data; render(data); ops(); userStats();
 }
 function gate(html) { $("#main").innerHTML = `<div class="gate"><p>${html}</p></div>`; }
 function loginForm(msg) {
@@ -271,13 +287,16 @@ function render(D) {
 
   <h2>中身</h2>
   <div class="grid g2"><div class="card"><h3>ジャンル</h3><div id="cCat"></div></div>
-    <div class="card"><h3>1人あたりのスタンプ数</h3><div id="cPer"></div></div>
+    <div class="card"><h3>1人あたりのスタンプ数</h3><div id="cPer"></div><p class="muted" style="margin:6px 0 0;font-size:11.5px">本部のアカウントは数えていません（全員の数は下の「ユーザー別」）。</p></div>
     <div class="card"><h3>みんなの図鑑で多く登録されているスタンプ</h3><div id="cTop"></div></div>
     <div class="card"><h3>データの資産</h3><div class="kv">
       <span>スタンプ（全員）</span><b>${nf(tt.stamps)}</b><span>位置つき</span><b>${nf(tt.stamps_located)}</b><span>写真つき</span><b>${nf(tt.stamps_photo)}</b>
       <span>重ね押し / デジスタ / 御朱印</span><b>${nf(tt.stamps_overlap)} / ${nf(tt.stamps_digital)} / ${nf(tt.goshuin)}</b><span>みんなの地図に公開</span><b>${nf(tt.shares)}</b>
       <span>図鑑のデザイン（第一発見者 ${nf(tt.first_finders)}人）</span><b>${nf(tt.designs)}</b><span>AIのプチ情報（使い回し ${nf(tt.trivia_reuse)}回）</span><b>${nf(tt.trivia)}</b>
       <span>ジャーナルのページ</span><b>${nf(tt.pages)}</b><span>歩いた記録 / 距離</span><b>${nf(tt.walks)}回 / ${tt.walk_km}km</b><span>報告（終わってた・ちがうよ）</span><b>${nf(tt.reports)}</b></div></div></div>
+
+  <h2 id="uHead">ユーザー別 <small>全員・登録スタンプの多い順（本部ログイン時だけ表示）</small></h2>
+  <div class="card" id="uStats"><p class="muted">読み込み中…</p></div>
 
   <h2>流入と端末</h2>
   <div class="grid g2"><div class="card"><h3>どこから来たか（最初の訪問）</h3><div id="cRef"></div></div>
