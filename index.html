@@ -207,10 +207,17 @@ async function config() {
 }
 /* ---------- ユーザー別（A1） ---------- */
 const jst = t => { if (!t) return "—"; const d = new Date(new Date(t).getTime() + 9 * 3600e3); return `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`; };
-async function userStats() {
-  const el = $("#uStats"); if (!el) return;
-  const { data: U, error } = await sb.rpc("hq_user_stats");
-  if (error || !U) { el.innerHTML = `<p class="muted">読み込めませんでした：${esc((error && error.message) || "")}</p>`; return; }
+let USTATS = null;
+async function userStats(cached) {
+  let el = $("#uStats"); if (!el) return;
+  if (!cached || !USTATS) {
+    let res; try { res = await Promise.race([sb.rpc("hq_user_stats"), new Promise(r => setTimeout(() => r({ error: { message: "時間切れ（右上の「更新」でもう一度）" } }), 20000))]); }
+    catch (e) { res = { error: { message: String(e && e.message || e) } }; }
+    el = $("#uStats"); if (!el) return;
+    if (res.error || !res.data) { el.innerHTML = `<p class="muted">読み込めませんでした：${esc((res.error && res.error.message) || "")}</p>`; return; }
+    USTATS = res.data;
+  }
+  const U = USTATS;
   const us = U.users || [], ok = U.sum_users === U.total;
   el.innerHTML = `<div class="kv" style="margin-bottom:10px">
       <span>アカウント数</span><b>${nf(us.length)}人（うちスタンプ1枚以上 ${nf(us.filter(u => u.stamps > 0).length)}人）</b>
@@ -229,7 +236,7 @@ async function load() {
   $("#main").innerHTML = `<div class="gate"><p>集計しています…</p></div>`;
   const { data, error } = await sb.rpc("hq_dashboard", { p_days: DAYS });
   if (error) { if (/not_admin/.test(error.message || "")) { await sb.auth.signOut().catch(() => {}); loginForm("このアカウントでは見られません。本部のアカウントでログインしてください。"); } else gate("読み込めませんでした：" + esc(error.message || "")); return; }
-  DATA = data; render(data); ops(); userStats();
+  DATA = data; USTATS = null; render(data); ops(); userStats();
 }
 function gate(html) { $("#main").innerHTML = `<div class="gate"><p>${html}</p></div>`; }
 function loginForm(msg) {
@@ -351,8 +358,11 @@ function drawMap(geo) {
 $("#range").onclick = e => { const b = e.target.closest("[data-d]"); if (!b) return; DAYS = +b.dataset.d; $("#range").querySelectorAll("button").forEach(z => z.setAttribute("aria-pressed", z === b)); load(); };
 $("#reload").onclick = () => load();
 $("#logout").onclick = async () => { await sb.auth.signOut().catch(() => {}); DATA = null; loginForm(); };
-let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => DATA && render(DATA), 200); });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => DATA && render(DATA));
+// 描き直し：iPhoneはスクロールでアドレスバーが出入りするたびに「高さだけ」変わる。そのたびに全部描き直すと
+// 本部の作業・ユーザー別が消えて画面が飛ぶので、横幅が変わったときだけ描き直し、場所と各欄を元に戻す
+function rerender() { if (!DATA) return; const y = scrollY; render(DATA); ops(); userStats(true); scrollTo(0, y); }
+let rt = 0, lastW = innerWidth; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(rerender, 200); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
 load();
 </script>
 </body>
